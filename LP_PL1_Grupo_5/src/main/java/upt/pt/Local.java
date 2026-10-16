@@ -54,6 +54,7 @@ public class Local {
     	this.horaInicio = horaInicio; }
     public String getHoraFim() { 
     	return horaFim; }
+    //
     public void setHoraFim(String horaFim) { 
     	this.horaFim = horaFim; }
     //
