@@ -50,6 +50,7 @@ public class Local {
     
     public String getHoraInicio() { 
     	return horaInicio; }
+    //
     public void setHoraInicio(String horaInicio) { 
     	this.horaInicio = horaInicio; }
     //
