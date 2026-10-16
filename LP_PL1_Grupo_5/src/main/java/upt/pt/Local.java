@@ -56,7 +56,7 @@ public class Local {
     	return horaFim; }
     public void setHoraFim(String horaFim) { 
     	this.horaFim = horaFim; }
-    
+    //
     public List<Armazem> getArmazens() { 
     	return armazens; }
     public void addArmazem(Armazem armazem) {
