@@ -20,11 +20,11 @@ public class Utilizador {
     @Column(name = "nome_utilizador")
     private String nomeUtilizador;
 
-    // Garante que não há emails repetidos na base de dados
+    
     @Column(unique = true)
     private String email;
     
-    // Garante que não há contactos repetidos na base de dados
+    
     @Column(unique = true)
     private int contacto;
 
