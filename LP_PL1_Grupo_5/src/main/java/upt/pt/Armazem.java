@@ -19,7 +19,7 @@ public class Armazem {
 	@jakarta.persistence.JoinColumn(name = "local_id")
 	private Local local;
 	
-	@jakarta.persistence.OneToMany(mapppedBy = "armazem", cascade =
+	@jakarta.persistence.OneToMany(mappedBy= "armazem", cascade =
 			jakarta.persistence.CascadeType.ALL)
 	private List <Prateleira> prateleiras = new ArrayList<>();
 	
