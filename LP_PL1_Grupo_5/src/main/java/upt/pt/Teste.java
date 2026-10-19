@@ -4,6 +4,7 @@ public class Teste {
 
 	public static void main(String[] args) {
 		
+	}
 		/** 
 	     * mostra e controla as opcoes da pessoa normal
 	     * @param gerir ligacao a base de dados
@@ -180,8 +181,7 @@ public class Teste {
 	            }
 	        }
 	        return utilizador;
-	    }
-
+	        
 	}
 
 }
