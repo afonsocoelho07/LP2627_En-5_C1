@@ -1,6 +1,6 @@
 package upt.pt;
 
-public class Main {
+public class Teste {
 
 	public static void main(String[] args) {
 
