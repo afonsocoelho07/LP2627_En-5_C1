@@ -1,3 +1,4 @@
+
 package upt.pt;
 
 import java.util.Scanner;

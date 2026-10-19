@@ -1,3 +1,4 @@
+
 package upt.pt;
 
 import org.hibernate.Session;
@@ -962,3 +963,4 @@ public class Gerir {
         if (sessionFactory != null) sessionFactory.close(); 
     }
 }
+
