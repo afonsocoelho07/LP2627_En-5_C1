@@ -5,12 +5,19 @@
 <hibernate-configuration>
     <session-factory>
         <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
-        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/LP</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/trabalho_grupo_perdidos_achados</property>
         <property name="hibernate.connection.username">root</property>
-        <property name="hibernate.connection.password">COLOCAR_PASSWORD_AQUI</property>
+        <property name="hibernate.connection.password">PASSWORD</property>
         <property name="hibernate.hbm2ddl.auto">update</property>
-        <property name="hibernate.show_sql">true</property>
+        <property name="hibernate.show_sql">false</property>
 
-        <mapping class="upt.pt.Item"/>
+
+		<mapping class="upt.pt.Utilizador"/>
+		<mapping class="upt.pt.Local"/>
+		<mapping class="upt.pt.Armazem"/>
+		<mapping class="upt.pt.Prateleira"/>
+		<mapping class="upt.pt.Objeto"/>
+		<mapping class="upt.pt.Reclamacao"/>
+        <mapping class="upt.pt.Agendamento"/>
     </session-factory>
 </hibernate-configuration>
