@@ -1,4 +1,3 @@
-
 package upt.pt;
 
 import org.hibernate.Session;
@@ -17,9 +16,9 @@ public class Gerir {
 
     private SessionFactory sessionFactory;
 
-    /** 
+    /**       
      * arranca a ligacao a base de dados 
-     */
+     */     
     public Gerir() {
         this.sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
     }
@@ -318,11 +317,11 @@ public class Gerir {
                 p = session.get(Prateleira.class, idPrat);
                 if (p != null) {
                     Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Arquivado', 'Concluído', 'Arquivado (Correspondido)')", Long.class)
-                                           .setParameter("idPrat", idPrat).uniqueResult();
+                                                       .setParameter("idPrat", idPrat).uniqueResult();
                     long atual = (ocupados != null) ? ocupados : 0;
                     if (atual >= p.getLotacaoPrateleira()) {
-                        System.out.println("Erro: A prateleira " + p.getCodigoPrateleira() + " já atingiu a lotação máxima (" + atual + "/" + p.getLotacaoPrateleira() + "). Escolha outra.");
-                        return;
+                        System.out.println("Erro: A prateleira " + p.getCodigoPrateleira() + " e o armazém já atingiram a lotação máxima (" + atual + "/" + p.getLotacaoPrateleira() + "). Volte mais tarde, está ocupado.");
+                        return; 
                     }
                 }
             }
@@ -332,7 +331,7 @@ public class Gerir {
             if (p != null) obj.setPrateleira(p);
             if (idLocal != null) obj.setLocalRecolha(session.get(Local.class, idLocal));
             
-            session.persist(obj);
+            session.persist(obj); 
             t.commit();
             System.out.println("Objeto registado na BD com sucesso!");
         } catch (Exception e) {
@@ -404,7 +403,7 @@ public class Gerir {
         for (Armazem a : local.getArmazens()) {
             for (Prateleira p : a.getPrateleiras()) {
                 Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Arquivado')", Long.class)
-                                       .setParameter("idPrat", p.getId()).uniqueResult();
+                                               .setParameter("idPrat", p.getId()).uniqueResult();
                 long atual = (ocupados != null) ? ocupados : 0;
 
                 if (atual < p.getLotacaoPrateleira() && atual < menorOcupacao) {
@@ -413,18 +412,18 @@ public class Gerir {
                 }
             }
         }
+        if (melhorPrateleira == null) {
+            System.out.println("Erro: O armazém deste edifício está cheio! Volte mais tarde, de momento está ocupado.");
+            t.rollback(); 
+            return; 
+        }
 
         Objeto obj = new Objeto(data, marca, tipo, cor, "Em Armazém");
         if (u != null) obj.setUtilizador(u);
         obj.setLocalRecolha(local);
+        obj.setPrateleira(melhorPrateleira);
 
-        if (melhorPrateleira != null) {
-            obj.setPrateleira(melhorPrateleira);
-        } else {
-            obj.setEstado("Aguardando Armazém");
-        }
-
-        session.persist(obj);
+        session.persist(obj); 
         t.commit();
         
         if (isFuncionario) {
@@ -432,12 +431,7 @@ public class Gerir {
         } else {
             System.out.println("Registado e entregue no local " + local.getNomeEdificio() + ".");
         }
-        
-        if (melhorPrateleira != null) {
-            System.out.println("Colocado AUTOMATICAMENTE na Prateleira " + melhorPrateleira.getCodigoPrateleira() + ".");
-        } else {
-            System.out.println("Aviso: Nenhuma prateleira com espaço disponível neste local. Objeto está 'Aguardando Armazém'.");
-        }
+        System.out.println("Colocado AUTOMATICAMENTE na Prateleira " + melhorPrateleira.getCodigoPrateleira() + ".");
     }
 
     /** 
@@ -963,4 +957,3 @@ public class Gerir {
         if (sessionFactory != null) sessionFactory.close(); 
     }
 }
-
