@@ -9,40 +9,48 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Scanner;
 
-/** 
- * classe principal que contem os metedos todos
+/**
+ * Classe principal de gestão que contém toda a lógica de negócio,
+ * regras de armazém e ligação ao Hibernate.
  */
 public class Gerir {
 
     private SessionFactory sessionFactory;
 
-    /**       
-     * arranca a ligacao a base de dados 
-     */     
+    /**
+     * Construtor da classe Gerir.
+     * Arranca a ligação à base de dados através do ficheiro hibernate.cfg.xml.
+     */
     public Gerir() {
         this.sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
     }
 
-    /** 
-     * ve se o email e a palavra passe estao certos para deixar a pessoa entrar
-     * @param identificador o email ou o telemovel da pessoa
-     * @param password a palavra passe
-     * @return devolve a conta da pessoa se tiver tudo bem ou null se falhar
+    /**
+     * Verifica as credenciais para permitir a entrada no sistema.
+     * @param identificador o email ou o telemóvel da pessoa.
+     * @param password a palavra-passe associada à conta.
+     * @return devolve a conta da pessoa se os dados estiverem corretos, ou null se falhar.
      */
     public Utilizador fazerLogin(String identificador, String password) {
         try (Session session = sessionFactory.openSession()) {
-            return session.createQuery("from Utilizador u where (u.email = :id or cast(u.contacto as string) = :id) and u.password = :pass", Utilizador.class)
-                          .setParameter("id", identificador)
-                          .setParameter("pass", password)
-                          .uniqueResult();
+            Utilizador u = session.createQuery("from Utilizador u where (u.email = :id or cast(u.contacto as string) = :id) and u.password = :pass", Utilizador.class)
+                                  .setParameter("id", identificador)
+                                  .setParameter("pass", password)
+                                  .uniqueResult();
+            
+            if (u != null) {
+                verificarObjetosExpirados();
+            }
+            
+            return u;
         }
     }
 
-    /** 
-     * ve se o email ou telemovel ja existem na base de dados para nao haver contas repetidas
-     * @param email o email que a pessoa escreveu
-     * @param contacto o telemovel que a pessoa escreveu
-     * @return devolve true se ja existir e false se for novidade
+    /**
+     * Verifica se o email ou telemóvel já existem na base de dados para evitar contas duplicadas.
+     * @param email o email digitado no registo.
+     * @param contacto o telemóvel digitado no registo.
+     * @return true se o email ou contacto já existirem, false caso contrário.
      */
     public boolean existeEmailOuContacto(String email, int contacto) {
         try (Session session = sessionFactory.openSession()) {
@@ -54,21 +62,21 @@ public class Gerir {
         }
     }
 
-    /** 
-     * cria uma conta nova e guarda
-     * @param tipo se e admin funcionario ou utilizador normal
-     * @param pass a palavra passe escolhida
-     * @param nome o nome da pessoa
-     * @param email o email
-     * @param contacto o numero de telemovel
+    /**
+     * Cria uma nova conta no sistema e guarda na base de dados.
+     * @param tipo o nível de acesso (Admin, Funcionário ou Cliente).
+     * @param pass a palavra-passe escolhida.
+     * @param nome o nome completo do utilizador.
+     * @param email o endereço de email.
+     * @param contacto o número de telemóvel.
      */
     public void adicionarUtilizador(String tipo, String pass, String nome, String email, int contacto) {
         guardar(new Utilizador(tipo, pass, nome, email, contacto));
     }
 
-    /** 
-     * mostra no ecra a lista de pessoas dependendo do cargo delas
-     * @param tipo o cargo que queremos ver
+    /**
+     * Mostra no ecrã a lista de utilizadores filtrada pelo seu cargo/tipo.
+     * @param tipo a string com o cargo a filtrar (ex: "Funcionario", "Cliente").
      */
     public void listarUtilizadoresPorTipo(String tipo) {
         try (Session session = sessionFactory.openSession()) {
@@ -85,9 +93,10 @@ public class Gerir {
         }
     }
 
-    /** 
-     * apaga a conta de alguem e limpa tudo o que essa pessoa fez para a base de dados nao dar erro
-     * @param id o numero da conta da pessoa a apagar
+    /**
+     * Apaga a conta de um utilizador e remove em cascata todo o seu histórico
+     * (objetos, reclamações, agendamentos) para manter a integridade da base de dados.
+     * @param id o número identificador (ID) da conta a apagar.
      */
     public void removerUtilizador(Long id) {
         try (Session session = sessionFactory.openSession()) {
@@ -98,7 +107,6 @@ public class Gerir {
                 if (u.getTipoUtilizador().equalsIgnoreCase("Admin")) {
                     System.out.println("Erro: Não tem permissão para remover um Administrador.");
                 } else {
-                    
                     List<Agendamento> agendamentosUser = session.createQuery("from Agendamento a where a.utilizador.id = :uid", Agendamento.class)
                             .setParameter("uid", id).getResultList();
                     for(Agendamento a : agendamentosUser) session.remove(a);
@@ -133,16 +141,16 @@ public class Gerir {
                     System.out.println("Conta (" + u.getTipoUtilizador() + ") e todos os processos foram removidos com sucesso!");
                 }
             } else {
-                System.out.println("Erro: ID de utilizador não encontrado.");
+                System.out.println("Erro: ID de cliente/conta não encontrado.");
             }
         } catch (Exception e) {
-            System.out.println("Erro ao remover utilizador: " + e.getMessage());
+            System.out.println("Erro ao remover conta: " + e.getMessage());
         }
     }
 
-    /** 
-     * serve para guardar na base de dados
-     * @param obj a coisa que queremos guardar
+    /**
+     * Motor genérico privado para abrir transação, persistir um objeto e fazer o commit.
+     * @param obj o objeto (entidade) que queremos guardar na base de dados.
      */
     private void guardar(Object obj) {
         try (Session session = sessionFactory.openSession()) {
@@ -154,21 +162,21 @@ public class Gerir {
         }
     }
 
-    /** 
-     * cria um novo edificio
-     * @param edificio nome do edificio
-     * @param descricao informacao sobre o local
-     * @param horaInicio hora que o edificio abre
-     * @param horaFim hora que o edificio fecha
+    /**
+     * Regista um novo edifício/local de recolha no sistema.
+     * @param edificio o nome do edifício.
+     * @param descricao informação adicional sobre o local.
+     * @param horaInicio hora de abertura do edifício.
+     * @param horaFim hora de fecho do edifício.
      */
     public void adicionarLocal(String edificio, String descricao, String horaInicio, String horaFim) { 
         guardar(new Local(edificio, descricao, horaInicio, horaFim)); 
     }
     
-    /** 
-     * cria um armazem novo mas verifica primeiro se o nome ja existe para nao haver iguais
-     * @param nome como se vai chamar o armazem
-     * @param localId numero do edificio onde o armazem vai ficar
+    /**
+     * Cria um novo armazém dentro de um edifício, validando se o nome já existe.
+     * @param nome o nome a atribuir ao armazém.
+     * @param localId o ID do edifício onde o armazém vai ficar.
      */
     public void adicionarArmazem(String nome, Long localId) {
         try (Session session = sessionFactory.openSession()) {
@@ -196,11 +204,11 @@ public class Gerir {
         }
     }
 
-    /** 
-     * cria uma prateleira e diz logo quantos objetos cabem la
-     * @param cod letras ou numeros da prateleira
-     * @param lotacao quantos objetos cabem no maximo
-     * @param armazemId numero do armazem onde ela fica
+    /**
+     * Cria uma prateleira ou cacifo dentro de um armazém com um limite de lotação.
+     * @param cod código de identificação da prateleira (ex: A1, Cacifo-B).
+     * @param lotacao número máximo de objetos que cabem nesta prateleira.
+     * @param armazemId o ID do armazém onde a prateleira será instalada.
      */
     public void adicionarPrateleira(String cod, int lotacao, Long armazemId) {
         try (Session session = sessionFactory.openSession()) {
@@ -220,10 +228,10 @@ public class Gerir {
         }
     }
 
-    /** 
-     * diz ao programa em que edificio o funcionario trabalha
-     * @param userId o numero da conta do funcionario
-     * @param localId o numero do edificio
+    /**
+     * Define o local de trabalho atual de um funcionário.
+     * @param userId o ID do funcionário.
+     * @param localId o ID do edifício onde o funcionário vai operar.
      */
     public void atribuirFuncionarioLocal(Long userId, Long localId) {
         try (Session session = sessionFactory.openSession()) {
@@ -235,15 +243,15 @@ public class Gerir {
                 t.commit();
                 System.out.println("Funcionário " + u.getNomeUtilizador() + " atribuído ao local " + l.getNomeEdificio() + " com sucesso!"); 
             } else {
-                System.out.println("Erro: Utilizador ou Local não encontrado.");
+                System.out.println("Erro: Funcionário ou Local não encontrado.");
             }
         } catch (Exception e) {
             System.out.println("Erro ao atribuir funcionário: " + e.getMessage());
         }
     }
 
-    /** 
-     * mostra no ecra todos os edificios e faz as contas de espaco ocupado nas prateleiras
+    /**
+     * Lista todos os edifícios, mostrando os funcionários atribuídos e calculando a lotação atual de cada prateleira.
      */
     public void listarLocaisComDetalhes() {
         try (Session session = sessionFactory.openSession()) {
@@ -284,7 +292,7 @@ public class Gerir {
                             System.out.println("      Sem prateleiras registadas.");
                         } else {
                             for (Prateleira p : a.getPrateleiras()) {
-                                Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Arquivado')", Long.class)
+                                Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Arquivado', 'Doado/Eliminado', 'Expirado (No Armazém)')", Long.class)
                                                        .setParameter("idPrat", p.getId()).uniqueResult();
                                 long qtdOcupada = (ocupados != null) ? ocupados : 0;
                                 System.out.println("      - Prateleira: " + p.getCodigoPrateleira() + " | Lotação: " + qtdOcupada + " ocupados de " + p.getLotacaoPrateleira() + " máx.");
@@ -297,16 +305,16 @@ public class Gerir {
         }
     }
 
-    /** 
-     * guarda um objeto novo e verifica logo se a prateleira escolhida esta cheia e bloqueia se estiver
-     * @param data o dia e a hora
-     * @param marca a marca da coisa
-     * @param tipo que tipo de coisa e
-     * @param cor a cor
-     * @param estado em que pe esta a situacao do objeto
-     * @param idUser quem o esta a registar
-     * @param idPrat em que prateleira vai ficar
-     * @param idLocal de que edificio e
+    /**
+     * Regista um novo objeto (perdido) e verifica a lotação da prateleira antes de gravar.
+     * @param data data de registo.
+     * @param marca a marca do objeto.
+     * @param tipo o tipo de objeto.
+     * @param cor a cor do objeto.
+     * @param estado estado inicial (ex: Perdido).
+     * @param idUser ID do cliente que está a reportar.
+     * @param idPrat ID da prateleira (pode ser null).
+     * @param idLocal ID do edifício onde foi perdido.
      */
     public void adicionarObjeto(LocalDateTime data, String marca, String tipo, String cor, String estado, Long idUser, Long idPrat, Long idLocal) {
         try (Session session = sessionFactory.openSession()) {
@@ -316,8 +324,8 @@ public class Gerir {
             if (idPrat != null) {
                 p = session.get(Prateleira.class, idPrat);
                 if (p != null) {
-                    Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Arquivado', 'Concluído', 'Arquivado (Correspondido)')", Long.class)
-                                                       .setParameter("idPrat", idPrat).uniqueResult();
+                    Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Arquivado', 'Concluído', 'Arquivado (Correspondido)', 'Doado/Eliminado', 'Expirado (No Armazém)')", Long.class)
+                                           .setParameter("idPrat", idPrat).uniqueResult();
                     long atual = (ocupados != null) ? ocupados : 0;
                     if (atual >= p.getLotacaoPrateleira()) {
                         System.out.println("Erro: A prateleira " + p.getCodigoPrateleira() + " e o armazém já atingiram a lotação máxima (" + atual + "/" + p.getLotacaoPrateleira() + "). Volte mais tarde, está ocupado.");
@@ -339,13 +347,13 @@ public class Gerir {
         }
     }
 
-    /** 
-     * guarda a coisa achada mas sabe logo onde o funcionario trabalha para nao lhe perguntar
-     * @param data o dia e a hora
-     * @param marca a marca da coisa
-     * @param tipo que tipo de coisa e
-     * @param cor a cor
-     * @param idUser o numero do funcionario
+    /**
+     * Regista um objeto achado pelo funcionário, associando automaticamente ao seu local de trabalho.
+     * @param data data e hora da recolha.
+     * @param marca a marca do objeto.
+     * @param tipo categoria/tipo do objeto.
+     * @param cor a cor.
+     * @param idUser o ID do funcionário que está a registar.
      */
     public void adicionarObjetoEncontrado(LocalDateTime data, String marca, String tipo, String cor, Long idUser) {
         try (Session session = sessionFactory.openSession()) {
@@ -360,40 +368,16 @@ public class Gerir {
         }
     }
 
-    /** 
-     * guarda a coisa achada para quem e utilizador normal porque o programa tem de lhe perguntar onde a deixou
-     * @param data o dia e a hora
-     * @param marca a marca da coisa
-     * @param tipo que tipo de coisa e
-     * @param cor a cor
-     * @param idUser o numero de quem achou
-     * @param idLocal onde a pessoa deixou a coisa
-     */
-    public void adicionarObjetoEncontrado(LocalDateTime data, String marca, String tipo, String cor, Long idUser, Long idLocal) {
-        try (Session session = sessionFactory.openSession()) {
-            Local local = session.get(Local.class, idLocal);
-            if (local == null) {
-                System.out.println("Erro: Local não encontrado na base de dados.");
-                return;
-            }
-            Utilizador u = session.get(Utilizador.class, idUser);
-            
-            registarAchadoNaPrateleira(session, data, marca, tipo, cor, u, local, false);
-        } catch (Exception e) {
-            System.out.println("ERRO: " + e.getMessage());
-        }
-    }
-
-    /** 
-     * ve as prateleiras todas e guarda a coisa automaticamente na que tiver mais lugar
-     * @param session ligacao ativa a base de dados
-     * @param data o dia e a hora
-     * @param marca a marca
-     * @param tipo o tipo
-     * @param cor a cor
-     * @param u quem esta a registar
-     * @param local o edificio
-     * @param isFuncionario se foi o funcionario ou o utilizador normal
+    /**
+     * Método interno para calcular automaticamente a prateleira com mais espaço e guardar um objeto achado.
+     * @param session a sessão ativa do Hibernate.
+     * @param data a data atual.
+     * @param marca a marca.
+     * @param tipo o tipo.
+     * @param cor a cor.
+     * @param u o utilizador associado.
+     * @param local o edifício de recolha.
+     * @param isFuncionario flag booleana para formatar a mensagem de saída.
      */
     private void registarAchadoNaPrateleira(Session session, LocalDateTime data, String marca, String tipo, String cor, Utilizador u, Local local, boolean isFuncionario) {
         Transaction t = session.beginTransaction();
@@ -402,8 +386,8 @@ public class Gerir {
 
         for (Armazem a : local.getArmazens()) {
             for (Prateleira p : a.getPrateleiras()) {
-                Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Arquivado')", Long.class)
-                                               .setParameter("idPrat", p.getId()).uniqueResult();
+                Long ocupados = session.createQuery("select count(o) from Objeto o where o.prateleira.id = :idPrat and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Arquivado', 'Doado/Eliminado', 'Expirado (No Armazém)')", Long.class)
+                                       .setParameter("idPrat", p.getId()).uniqueResult();
                 long atual = (ocupados != null) ? ocupados : 0;
 
                 if (atual < p.getLotacaoPrateleira() && atual < menorOcupacao) {
@@ -412,6 +396,7 @@ public class Gerir {
                 }
             }
         }
+        
         if (melhorPrateleira == null) {
             System.out.println("Erro: O armazém deste edifício está cheio! Volte mais tarde, de momento está ocupado.");
             t.rollback(); 
@@ -434,11 +419,11 @@ public class Gerir {
         System.out.println("Colocado AUTOMATICAMENTE na Prateleira " + melhorPrateleira.getCodigoPrateleira() + ".");
     }
 
-    /** 
-     * serve so para ir mudar a palavra de estado do objeto para outra coisa
-     * @param id qual o objeto
-     * @param novoEstado o estado novo a colocar
-     * @param idAssociado o objeto que faz par com este
+    /**
+     * Utilitário privado para alterar a string de estado de um objeto e opcionalmente criar um vínculo (Foreign Key).
+     * @param id o ID do objeto a editar.
+     * @param novoEstado o novo estado.
+     * @param idAssociado o ID do objeto a associar (usar -1 para anular associação).
      */
     private void atualizarEstadoObjeto(Long id, String novoEstado, Long idAssociado) {
         try (Session session = sessionFactory.openSession()) {
@@ -461,19 +446,19 @@ public class Gerir {
         }
     }
 
-    /** 
-     * da o processo como encerrado de vez
-     * @param idObjeto o numero do objeto
+    /**
+     * Altera o estado do objeto definitivamente para "Arquivado", encerrando o processo.
+     * @param idObjeto o ID do objeto.
      */
     public void arquivarProcesso(Long idObjeto) { 
         atualizarEstadoObjeto(idObjeto, "Arquivado", null); 
     }
     
-    /** 
-     * junta um objeto perdido com um achado mas o funcionario so pode fazer isto no edificio dele
-     * @param idPerdido numero do objeto perdido
-     * @param idAchado numero do objeto achado
-     * @param idFuncionario numero do funcionario que esta a fazer isto
+    /**
+     * Une um objeto perdido (reportado pelo cliente) a um achado pelo funcionário, validando se pertencem ao mesmo local.
+     * @param idPerdido o ID do objeto reclamado.
+     * @param idAchado o ID do objeto no armazém.
+     * @param idFuncionario o funcionário que está a processar a correspondência.
      */
     public void associarManual(Long idPerdido, Long idAchado, Long idFuncionario) { 
         try (Session session = sessionFactory.openSession()) {
@@ -515,21 +500,21 @@ public class Gerir {
         }
     }
 
-    /** 
-     * desfaz a juncao dos dois objetos
-     * @param id o numero do objeto
+    /**
+     * Anula a união entre dois objetos e devolve o objeto original ao armazém.
+     * @param id o ID do objeto.
      */
     public void rejeitarCorrespondencia(Long id) { 
         atualizarEstadoObjeto(id, "Em Armazém", -1L); 
     }
 
-    /** 
-     * faz a conta para o admin ver a percentagem de coisas devolvidas
+    /**
+     * Imprime no ecrã a percentagem de sucesso do sistema (Objetos Concluídos/Arquivados vs Total).
      */
     public void calcularEstatisticaEntregas() {
         try (Session session = sessionFactory.openSession()) {
             Long total = session.createQuery("select count(o) from Objeto o", Long.class).uniqueResult();
-            Long concluidos = session.createQuery("select count(o) from Objeto o where o.estado = 'Arquivado' or o.estado = 'Entregue' or o.estado = 'Concluído'", Long.class).uniqueResult();
+            Long concluidos = session.createQuery("select count(o) from Objeto o where o.estado = 'Arquivado' or o.estado = 'Entregue' or o.estado = 'Concluído' or o.estado = 'Arquivado (Correspondido)'", Long.class).uniqueResult();
             if (total != null && total > 0) {
                 System.out.printf(">> Estatística: %.2f%% dos objetos foram devolvidos/arquivados.\n", ((double) concluidos / total) * 100);
             } else {
@@ -538,11 +523,11 @@ public class Gerir {
         }
     }
 
-    /** 
-     * a pessoa diz que o objeto e dela e o sistema guarda esse pedido para ser avaliado
-     * @param idObjeto o que a pessoa diz ser dela
-     * @param idUser quem e a pessoa
-     * @param detalhes como a pessoa prova que e dela
+    /**
+     * Regista uma nova reclamação (tentativa de reaver um objeto) submetida por um cliente.
+     * @param idObjeto o ID do objeto reclamado.
+     * @param idUser o ID do cliente.
+     * @param detalhes descrição da prova de posse fornecida pelo cliente.
      */
     public void submeterReclamacao(Long idObjeto, Long idUser, String detalhes) {
         try (Session session = sessionFactory.openSession()) {
@@ -559,15 +544,15 @@ public class Gerir {
                 t.commit();
                 System.out.println("Reclamação submetida com sucesso! O objeto permanece na lista até decisão. (ID: " + r.getId() + ")");
             } else { 
-                System.out.println("Erro: Objeto ou Utilizador não encontrado na base de dados."); 
+                System.out.println("Erro: Objeto ou Cliente não encontrado na base de dados."); 
             }
         } catch (Exception e) {
             System.out.println("ERRO AO SUBMETER RECLAMAÇÃO: " + e.getMessage());
         }
     }
 
-    /** 
-     * mostra para o administrador tudo o que as pessoas estao a tentar reclamar
+    /**
+     * Lista para o Administrador todas as reclamações pendentes ativas a nível global.
      */
     public void listarReclamacoesPendentes() {
         try (Session session = sessionFactory.openSession()) {
@@ -585,9 +570,9 @@ public class Gerir {
         }
     }
 
-    /** 
-     * mostra para o funcionario mas so aquilo que pertence ao edificio onde ele trabalha
-     * @param idFuncionario o id do funcionario que quer ver
+    /**
+     * Lista reclamações, filtrando apenas aquelas cujo objeto se encontra no edifício do funcionário autenticado.
+     * @param idFuncionario o ID do funcionário a executar a pesquisa.
      */
     public void listarReclamacoesPendentes(Long idFuncionario) {
         try (Session session = sessionFactory.openSession()) {
@@ -615,10 +600,10 @@ public class Gerir {
         }
     }
 
-    /** 
-     * o funcionario diz que as provas estao certas e a pessoa fica como dona do objeto mas so do seu edificio
-     * @param idReclamacao numero da reclamacao
-     * @param idFuncionario numero do funcionario que da a aprovacao
+    /**
+     * Aprova as provas dadas pelo cliente, atribuindo-lhe a titularidade do objeto e rejeitando outras reclamações concorrentes.
+     * @param idReclamacao o ID da reclamação.
+     * @param idFuncionario o ID do funcionário que está a despachar.
      */
     public void aprovarReclamacao(Long idReclamacao, Long idFuncionario) {
         try (Session session = sessionFactory.openSession()) {
@@ -648,7 +633,7 @@ public class Gerir {
                     }
                 }
                 t.commit();
-                System.out.println("Reclamação Aprovada! O objeto está agora associado ao utilizador e pronto para Agendamento.");
+                System.out.println("Reclamação Aprovada! O objeto está agora associado ao Cliente e pronto para Agendamento.");
             } else {
                 System.out.println("Erro: Reclamação não encontrada ou já processada.");
             }
@@ -657,11 +642,11 @@ public class Gerir {
         }
     }
 
-    /** 
-     * o funcionario diz que as provas sao fracas e rejeita mas so do seu edificio
-     * @param idReclamacao numero do pedido
-     * @param motivo texto a explicar porque chumbou
-     * @param idFuncionario quem e o funcionario
+    /**
+     * Rejeita a reclamação se as provas fornecidas forem insuficientes ou incorretas.
+     * @param idReclamacao o ID da reclamação.
+     * @param motivo o texto explicativo da nega.
+     * @param idFuncionario o funcionário que chumba o pedido.
      */
     public void rejeitarReclamacao(Long idReclamacao, String motivo, Long idFuncionario) {
         try (Session session = sessionFactory.openSession()) {
@@ -688,11 +673,11 @@ public class Gerir {
         }
     }
 
-    /** 
-     * a pessoa marca hora para ir buscar e o objeto liberta o espaco da prateleira na hora
-     * @param idObjeto o que vai buscar
-     * @param idUser quem vai buscar
-     * @param dataHora que dia e hora
+    /**
+     * Reserva uma vaga horária para o cliente levantar o objeto. Conclui o processo e liberta a lotação da prateleira.
+     * @param idObjeto o objeto a levantar.
+     * @param idUser o cliente.
+     * @param dataHora o dia e hora escolhidos (limite de 3 agendamentos por slot).
      */
     public void agendarRecolha(Long idObjeto, Long idUser, LocalDateTime dataHora) {
         try (Session session = sessionFactory.openSession()) {
@@ -736,36 +721,18 @@ public class Gerir {
         }
     }
 
-    /** 
-     * mostra as coisas que estao arrumadas no armazem a espera do dono
+    /**
+     * Mostra os objetos físicos que se encontram guardados e visíveis ao público.
      */
     public void listarObjetosDisponiveis() {
         pesquisarObjetos("from Objeto o where o.estado = 'Em Armazém' or o.estado = 'Aguardando Armazém'", null, null);
     }
 
-    /** 
-     * mostra apenas a lista de tudo o que as pessoas reportaram ter perdido
-     */
-    public void listarObjetosPerdidos() {
-        try (Session session = sessionFactory.openSession()) {
-            List<Objeto> lista = session.createQuery("from Objeto o where o.estado = 'Perdido'", Objeto.class).getResultList();
-            
-            if (lista.isEmpty()) {
-                System.out.println("Nenhum objeto perdido encontrado.");
-            } else {
-                for (Objeto o : lista) {
-                    String dono = (o.getUtilizador() != null) ? o.getUtilizador().getNomeUtilizador() : "Desconhecido";
-                    System.out.println(o + " | Dono: " + dono);
-                }
-            }
-        }
-    }
-
-    /** 
-     * pesquisa na base de dados
-     * @param sql o codigo de pesquisa
-     * @param parametro a palavra de filtro
-     * @param valor o valor procurado
+    /**
+     * Motor principal de execução de queries de listagem de objetos (DRY pattern).
+     * @param sql a query formatada em HQL.
+     * @param parametro o nome do bind parameter.
+     * @param valor o valor a injetar na query.
      */
     public void pesquisarObjetos(String sql, String parametro, Object valor) {
         try (Session session = sessionFactory.openSession()) {
@@ -783,34 +750,35 @@ public class Gerir {
         }
     }
 
-    /** 
-     * procura palavras soltas no sistema
-     * @param kw a palavra
+    /**
+     * Filtra objetos recorrendo a pesquisa de texto livre por marca ou tipo.
+     * @param kw a keyword/palavra.
      */
     public void pesquisaPalavraChave(String kw) { 
         pesquisarObjetos("from Objeto o where lower(o.marca) like :kw or lower(o.tipo) like :kw", "kw", "%" + kw.toLowerCase() + "%"); 
     }
     
-    /** 
-     * procura mesmo a categoria especifica
-     * @param categoria palavra a pesquisar
+    /**
+     * Filtra objetos através da correspondência exata de categoria/tipo.
+     * @param categoria a categoria pretendida.
      */
     public void pesquisaCategoria(String categoria) { 
         pesquisarObjetos("from Objeto o where lower(o.tipo) = :cat", "cat", categoria.toLowerCase()); 
     }
     
-    /** 
-     * procura direitinho o numero do objeto
-     * @param id numero a procurar
+    /**
+     * Imprime no ecrã um único objeto através da chave primária (ID).
+     * @param id o ID do objeto.
      */
     public void pesquisaPorId(Long id) { 
         pesquisarObjetos("from Objeto o where o.id = :id", "id", id); 
     }
     
-    /** 
-     * procura o objeto e prepara os dados de horarios e dono para os menus nao crasharem
-     * @param id o numero do objeto
-     * @return devolve a coisa com as pecas todas atadas
+    /**
+     * Realiza o fetch proativo de dados preguiçosos (Lazy Fetching) para impedir crashes de sessão inativa
+     * nos menus de visualização.
+     * @param id o ID do objeto.
+     * @return o objeto Objeto preenchido com utilizador e locais.
      */
     public Objeto getObjetoInfo(Long id) {
         try (Session session = sessionFactory.openSession()) {
@@ -825,37 +793,45 @@ public class Gerir {
         }
     }
     
-    /** 
-     * diz ao utilizador em que pe estao as coisas dele e se algo chumbou diz o porque
-     * @param userId o id de quem quer ver
+    /**
+     * Compila e exibe o dashboard pessoal do cliente com as suas reclamações 
+     * e estritamente os seus objetos registados como perdidos.
+     * @param userId o ID do utilizador (cliente).
      */
     public void listarMeusProcessos(Long userId) { 
         try (Session session = sessionFactory.openSession()) {
-            List<Objeto> meusObjetos = session.createQuery("from Objeto o where o.utilizador.id = :id and o.estado != 'Arquivado (Correspondido)'", Objeto.class)
-                                              .setParameter("id", userId)
-                                              .getResultList();
             
-            List<Reclamacao> minhasReclamacoes = session.createQuery("from Reclamacao r where r.utilizador.id = :id", Reclamacao.class)
-                                                        .setParameter("id", userId)
-                                                        .getResultList();
+            
+            List<Objeto> meusObjetos = session.createQuery(
+                "from Objeto o where o.utilizador.id = :id and o.estado in ('Perdido', 'Autorizado para Levantamento', 'Concluído')", Objeto.class)
+                .setParameter("id", userId)
+                .getResultList();
+            
+            
+            List<Reclamacao> minhasReclamacoes = session.createQuery(
+                "from Reclamacao r where r.utilizador.id = :id", Reclamacao.class)
+                .setParameter("id", userId)
+                .getResultList();
 
             if (meusObjetos.isEmpty() && minhasReclamacoes.isEmpty()) {
-                System.out.println("Nenhum processo ou reclamação encontrado.");
+                System.out.println("Nenhum objeto perdido ou reclamação encontrado na sua conta.");
                 return;
             }
 
             if (!meusObjetos.isEmpty()) {
-                System.out.println("--- Objetos Registados / Adquiridos por Mim ---");
+                System.out.println("\n--- Os Meus Objetos Perdidos ---");
                 for (Objeto o : meusObjetos) {
                     System.out.println(o);
                 }
             }
 
             if (!minhasReclamacoes.isEmpty()) {
-                System.out.println("--- Minhas Reclamações ---");
+                System.out.println("\n--- As Minhas Reclamações ---");
                 for (Reclamacao r : minhasReclamacoes) {
                     if (r.getObjeto() != null) {
                         String infoReclamacao = "Reclamação ID: " + r.getId() + " (" + r.getEstado() + ") -> " + r.getObjeto();
+                        
+                        
                         if ("Rejeitada".equalsIgnoreCase(r.getEstado()) && r.getMotivoRejeicao() != null) {
                             infoReclamacao += " | Motivo: " + r.getMotivoRejeicao();
                         }
@@ -866,50 +842,36 @@ public class Gerir {
         }
     }
 
-    /** 
-     * devolve lista dos edificios para por menus mais faceis
-     * @return lista com eles
-     */
+    /** Devolve a lista global de edifícios */
     public List<Local> getLocais() { 
         try (Session s = sessionFactory.openSession()) { return s.createQuery("from Local", Local.class).getResultList(); }
     }
 
-    /** 
-     * devolve a lista dos armazens todos
-     * @return lista deles
-     */
+    /** Devolve a lista global de armazéns */
     public List<Armazem> getArmazens() { 
         try (Session s = sessionFactory.openSession()) { return s.createQuery("from Armazem", Armazem.class).getResultList(); }
     }
 
-    /** 
-     * devolve as prateleiras
-     * @return prateleiras
-     */
+    /** Devolve a lista global de prateleiras */
     public List<Prateleira> getPrateleiras() { 
         try (Session s = sessionFactory.openSession()) { return s.createQuery("from Prateleira", Prateleira.class).getResultList(); }
     }
 
-    /** 
-     * vai buscar os utilizadores normais os funcionarios e admins
-     * @return lista de malta registada
-     */
+    /** Devolve a lista global de contas de utilizador (Admins, Funcionários, Clientes) */
     public List<Utilizador> getUtilizadores() { 
         try (Session s = sessionFactory.openSession()) { return s.createQuery("from Utilizador", Utilizador.class).getResultList(); }
     }
 
-    /** 
-     * puxa todos os objetos globais da bd
-     * @return lista gigante de coisas
-     */
+    /** Devolve o histórico completo de objetos já registados */
     public List<Objeto> getTodosObjetos() { 
         try (Session s = sessionFactory.openSession()) { return s.createQuery("from Objeto", Objeto.class).getResultList(); }
     }
 
-    /** 
-     * ajuda o programa a nao ir abaixo quando em vez de um numero metem letras ao escolher os menus
-     * @param scanner que le o teclado
-     * @return devolve o numero e se der asneira diz que deu erro para nao rebentar
+    /**
+     * Validador de teclado. Pede e devolve em modo "safe" um número Integer lido da consola. 
+     * Impede crashes do sistema causados por letras ou caracteres incorretos.
+     * @param scanner a instância ativa da class java.util.Scanner.
+     * @return o número capturado ou -1 em caso de erro.
      */
     public int lerInt(Scanner scanner) {
         String texto = scanner.nextLine().trim();
@@ -919,10 +881,10 @@ public class Gerir {
         return -1;
     }
 
-    /** 
-     * protege para quando a pessoa insere os codigos id que as vezes sao muito longos
-     * @param scanner le do teclado
-     * @return devolve o codigo grande
+    /**
+     * Validador de teclado para números grandes (identificadores).
+     * @param scanner a instância ativa da class java.util.Scanner.
+     * @return o número (Long) capturado ou -1L em caso de erro.
      */
     public Long lerLong(Scanner scanner) {
         String texto = scanner.nextLine().trim();
@@ -932,11 +894,12 @@ public class Gerir {
         return -1L;
     }
 
-    /** 
-     * se alguem so carregar no enter e ficar vazio isto chateia ate meterem texto verdadeiro
-     * @param scanner teclado
-     * @param mensagem pergunta que o sistema faz
-     * @return devolve a resposta final certinha
+    /**
+     * Validador de teclado que assegura o preenchimento obrigatório de campos.
+     * Entra em loop bloqueante até o utilizador escrever texto e não apenas premir Enter vazio.
+     * @param scanner a instância do scanner.
+     * @param mensagem a label a perguntar ao utilizador.
+     * @return a String validada.
      */
     public String lerTextoObrigatorio(Scanner scanner, String mensagem) {
         String texto = "";
@@ -949,9 +912,101 @@ public class Gerir {
         }
         return texto;
     }
+    
+    /**
+     * JOB AUTOMÁTICO (Despoletado no Login). 
+     * Lê todos os objetos de cacifos. Se o tempo da data do sistema face à data original do objeto for > 30 dias,
+     * retira a lotação da prateleira e lança o objeto para a fase final do Armazém com o estado "Expirado".
+     */
+    public void verificarObjetosExpirados() {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction t = session.beginTransaction();
+            
+            List<Objeto> objetos = session.createQuery("from Objeto o where o.prateleira is not null and o.estado not in ('Concluído', 'Arquivado (Correspondido)', 'Doado/Eliminado')", Objeto.class).getResultList();
+            
+            LocalDateTime hoje = LocalDateTime.now();
+            int movidos = 0;
+            
+            for (Objeto o : objetos) {
+                if (o.getData() != null && java.time.temporal.ChronoUnit.DAYS.between(o.getData(), hoje) > 30) {
+                    o.setPrateleira(null); 
+                    o.setEstado("Expirado (No Armazém)"); 
+                    session.merge(o);
+                    movidos++;
+                }
+            }
+            t.commit();
+            
+            if (movidos > 0) {
+                System.out.println("\n[SISTEMA AUTOMÁTICO] " + movidos + " objetos ultrapassaram o tempo limite nos cacifos e foram movidos para o Armazém para serem eliminados.");
+            }
+        } catch (Exception e) {
+            System.out.println("Erro ao verificar tempo dos objetos: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Remove ou doa definitivamente objetos órfãos ou expirados, libertando o armazém.
+     * Exclusivo à atuação do funcionário.
+     * @param idObjeto o ID do objeto.
+     * @param idFuncionario o funcionário que autoriza a saída.
+     */
+    public void doarOuEliminarObjeto(Long idObjeto, Long idFuncionario) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction t = session.beginTransaction();
+            Objeto o = session.get(Objeto.class, idObjeto);
+            Utilizador f = session.get(Utilizador.class, idFuncionario);
+
+            if (o != null && f != null) {
+                if ("Expirado (No Armazém)".equals(o.getEstado()) || "Em Armazém".equals(o.getEstado())) {
+                    o.setEstado("Doado/Eliminado");
+                    o.setPrateleira(null);
+                    o.setLocalRecolha(null);
+                    session.merge(o);
+                    t.commit();
+                    System.out.println("Sucesso: O Objeto ID " + idObjeto + " foi Doado/Eliminado e o armazém foi esvaziado!");
+                } else {
+                    System.out.println("Erro: Não pode eliminar este objeto. O estado atual é '" + o.getEstado() + "'.");
+                }
+            } else {
+                System.out.println("Erro: Objeto ou Funcionário não encontrado.");
+            }
+        } catch (Exception e) {
+            System.out.println("Erro ao eliminar/doar objeto: " + e.getMessage());
+        }
+    }
+    
+    /** 
+     * Mostra a lista de objetos que excederam o tempo (30 dias) e estão no armazém 
+     * a aguardar que o funcionário os elimine ou doe.
+     */
+    public void listarObjetosExpirados() {
+        System.out.println("\n--- OBJETOS EXPIRADOS (A AGUARDAR ELIMINAÇÃO/DOAÇÃO) ---");
+        pesquisarObjetos("from Objeto o where o.estado = 'Expirado (No Armazém)'", null, null);
+    }
+    
+    /** 
+     * Mostra apenas a lista de tudo o que os clientes reportaram ter perdido.
+     * Útil para o funcionário consultar antes de fazer associações.
+     */
+    public void listarObjetosPerdidos() {
+        try (Session session = sessionFactory.openSession()) {
+            List<Objeto> lista = session.createQuery("from Objeto o where o.estado = 'Perdido'", Objeto.class).getResultList();
+            
+            if (lista.isEmpty()) {
+                System.out.println("Nenhum objeto perdido reportado no sistema.");
+            } else {
+                System.out.println("\n--- LISTA DE OBJETOS PERDIDOS (REPORTADOS PELOS CLIENTES) ---");
+                for (Objeto o : lista) {
+                    String dono = (o.getUtilizador() != null) ? o.getUtilizador().getNomeUtilizador() : "Desconhecido";
+                    System.out.println(o + " | Dono: " + dono);
+                }
+            }
+        }
+    }
 
     /** 
-     * arruma e acaba a ligacao a base de dados
+     * Encerra a ligação e o contexto global do Hibernate. A executar antes do programa desligar.
      */
     public void fecharLigacao() { 
         if (sessionFactory != null) sessionFactory.close(); 

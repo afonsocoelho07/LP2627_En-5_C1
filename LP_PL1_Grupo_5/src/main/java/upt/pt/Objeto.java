@@ -15,9 +15,9 @@ public class Objeto {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** data e hora da perda do objeto */
+    /** data e hora da perda/achado do objeto */
     @Column(name = "data_hora_perda")
-    private LocalDateTime dataHoraPerda;
+    private LocalDateTime data;
 
     /** marca do objeto */
     private String marca;
@@ -41,8 +41,8 @@ public class Objeto {
     @JoinColumn(name = "prateleira_id")
     private Prateleira prateleira;
 
-    /** outro objeto associado a este */
-    @ManyToOne
+    /** outro objeto associado a este (CORRIGIDO: Tem de ser Um-para-Um) */
+    @OneToOne
     @JoinColumn(name = "associado_id")
     private Objeto objetoAssociado; 
 
@@ -55,37 +55,58 @@ public class Objeto {
     public Objeto() {}
 
     /** construtor com os dados principais do objeto */
-    public Objeto(LocalDateTime dataHoraPerda, String marca, String tipo, String cor, String estado) {
-        this.dataHoraPerda = dataHoraPerda;
+    public Objeto(LocalDateTime data, String marca, String tipo, String cor, String estado) {
+        this.data = data;
         this.marca = marca;
         this.tipo = tipo;
         this.cor = cor;
         this.estado = estado;
     }
 
+    
     /** devolve o identificador do objeto */
     public Long getId() { 
         return id; 
     }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    /** devolve a data e hora da perda */
-    public LocalDateTime getDataHoraPerda() { 
-        return dataHoraPerda; 
+    /** devolve a data e hora */
+    public LocalDateTime getData() { 
+        return data; 
+    }
+    
+    public void setData(LocalDateTime data) {
+        this.data = data;
     }
 
     /** devolve a marca do objeto */
     public String getMarca() { 
         return marca; 
     }
+    
+    public void setMarca(String marca) {
+        this.marca = marca;
+    }
 
     /** devolve o tipo do objeto */
     public String getTipo() { 
         return tipo; 
     }
+    
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
 
     /** devolve a cor do objeto */
     public String getCor() { 
         return cor; 
+    }
+    
+    public void setCor(String cor) {
+        this.cor = cor;
     }
 
     /** devolve o estado do objeto */
