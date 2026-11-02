@@ -177,6 +177,8 @@ public class Teste {
                     break;
                     
                 case 6:
+                	System.out.println("--- Objetos Disponíveis ---");
+                	gerir.listarObjetosDisponiveis();
                     System.out.print("ID do Objeto a Reclamar: ");
                     Long idReclamar = gerir.lerLong(scanner);
                     if (idReclamar == -1L) break;
@@ -328,6 +330,10 @@ public class Teste {
                     break;
                     
                 case 4:
+                	System.out.println("--- Objetos Perdidos ---");
+                	gerir.listarObjetosPerdidos();
+                	System.out.println("--- Objetos Disponíveis ---");
+                	gerir.listarObjetosDisponiveis();
                     System.out.print("ID Objeto Perdido: ");
                     Long idPerdido = gerir.lerLong(scanner);
                     System.out.print("ID Objeto Achado: ");
