@@ -127,6 +127,15 @@ public class Teste {
                     gestor.submeterReclamacao(idObjRec, userLogado.getId(), provas);
                     break;
                 case 6:
+	System.out.println("--- Objetos Disponíveis ---");
+                	gerir.listarObjetosDisponiveis();
+                    System.out.print("ID do Objeto a Reclamar: ");
+                    Long idReclamar = gerir.lerLong(scanner);
+                    if (idReclamar == -1L) break;
+                    
+                    String detalhes = gerir.lerTextoObrigatorio(scanner, "Detalhes/Provas (ex: capa amarela, rachadela no ecrã): ");
+                    gerir.submeterReclamacao(idReclamar, utilizador.getId(), detalhes); 
+=======
                     System.out.print("ID do Objeto a recolher: ");
                     Long idObjAgend = gestor.lerLong(scanner);
                     LocalDateTime amanha = LocalDateTime.now().plusDays(1).withHour(14).withMinute(0).withSecond(0);
@@ -181,6 +190,19 @@ public class Teste {
                     gestor.listarObjetosDisponiveis();
                     break;
                 case 4:
+System.out.println("--- Objetos Perdidos ---");
+                	gerir.listarObjetosPerdidos();
+                	System.out.println("--- Objetos Disponíveis ---");
+                	gerir.listarObjetosDisponiveis();
+                    System.out.print("ID Objeto Perdido: ");
+                    Long idPerdido = gerir.lerLong(scanner);
+                    System.out.print("ID Objeto Achado: ");
+                    Long idAchado = gerir.lerLong(scanner);
+                    
+                    if (idPerdido != -1L && idAchado != -1L) {
+                        gerir.associarManual(idPerdido, idAchado, utilizador.getId()); 
+                    }
+=======
                     System.out.print("ID do Objeto: ");
                     Long idPesq = gestor.lerLong(scanner);
                     gestor.pesquisaPorId(idPesq);
