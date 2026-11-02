@@ -12,7 +12,7 @@
         <property name="hibernate.show_sql">false</property>
 
 
-		<mapping class="upt.pt.Utilizador"/>
+		<mapping class="upt.pt.Cliente"/>
 		<mapping class="upt.pt.Local"/>
 		<mapping class="upt.pt.Armazem"/>
 		<mapping class="upt.pt.Prateleira"/>

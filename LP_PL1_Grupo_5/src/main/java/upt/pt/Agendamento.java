@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * esta classe representa a tabela agendamento guarda a data a hora o utilizador e o objeto
+ * esta classe representa a tabela agendamento guarda a data a hora o Cliente e o objeto
  */
 @Entity
 @Table(name = "agendamento")
@@ -18,8 +18,8 @@ public class Agendamento {
     private LocalDateTime dataHora;
 
     @ManyToOne
-    @JoinColumn(name = "utilizador_id")
-    private Utilizador utilizador;
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
 
     @OneToOne
     @JoinColumn(name = "objeto_id")
@@ -58,21 +58,21 @@ public class Agendamento {
     }
     
     /**
-     * devolve o utilizador associado
+     * devolve o Cliente associado
      * 
-     * @return o utilizador
+     * @return o Cliente
      */
-    public Utilizador getUtilizador() {  
-        return utilizador; 
+    public Cliente getCliente() {  
+        return cliente; 
     }
     
     /**
-     * define o utilizador associado
+     * define o Cliente associado
      * 
-     * @param utilizador o novo utilizador
+     * @param Cliente o novo Cliente
      */
-    public void setUtilizador(Utilizador utilizador) {  
-        this.utilizador = utilizador; 
+    public void setCliente(Cliente cliente) {  
+        this.cliente = cliente; 
     }
     
     /**

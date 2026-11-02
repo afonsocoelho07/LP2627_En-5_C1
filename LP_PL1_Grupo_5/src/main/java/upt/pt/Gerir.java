@@ -30,9 +30,9 @@ public class Gerir {
      * @param password a palavra passe
      * @return devolve a conta da pessoa se tiver tudo bem ou null se falhar
      */
-    public Utilizador fazerLogin(String identificador, String password) {
+    public Cliente fazerLogin(String identificador, String password) {
         try (Session session = sessionFactory.openSession()) {
-            return session.createQuery("from Utilizador u where (u.email = :id or cast(u.contacto as string) = :id) and u.password = :pass", Utilizador.class)
+            return session.createQuery("from Cliente u where (u.email = :id or cast(u.contacto as string) = :id) and u.password = :pass", Cliente.class)
                           .setParameter("id", identificador)
                           .setParameter("pass", password)
                           .uniqueResult();
@@ -47,7 +47,7 @@ public class Gerir {
      */
     public boolean existeEmailOuContacto(String email, int contacto) {
         try (Session session = sessionFactory.openSession()) {
-            Long count = session.createQuery("select count(u) from Utilizador u where u.email = :email or u.contacto = :contacto", Long.class)
+            Long count = session.createQuery("select count(u) from Cliente u where u.email = :email or u.contacto = :contacto", Long.class)
                                 .setParameter("email", email)
                                 .setParameter("contacto", contacto)
                                 .uniqueResult();
@@ -57,29 +57,29 @@ public class Gerir {
 
     /** 
      * cria uma conta nova e guarda
-     * @param tipo se e admin funcionario ou utilizador normal
+     * @param tipo se e admin funcionario ou Cliente normal
      * @param pass a palavra passe escolhida
      * @param nome o nome da pessoa
      * @param email o email
      * @param contacto o numero de telemovel
      */
-    public void adicionarUtilizador(String tipo, String pass, String nome, String email, int contacto) {
-        guardar(new Utilizador(tipo, pass, nome, email, contacto));
+    public void adicionarCliente(String tipo, String pass, String nome, String email, int contacto) {
+        guardar(new Cliente(tipo, pass, nome, email, contacto));
     }
 
     /** 
      * mostra no ecra a lista de pessoas dependendo do cargo delas
      * @param tipo o cargo que queremos ver
      */
-    public void listarUtilizadoresPorTipo(String tipo) {
+    public void listarClientePorTipo(String tipo) {
         try (Session session = sessionFactory.openSession()) {
-            List<Utilizador> lista = session.createQuery("from Utilizador u where lower(u.tipoUtilizador) = :tipo", Utilizador.class)
+            List<Cliente> lista = session.createQuery("from Cliente u where lower(u.tipoCliente) = :tipo", Cliente.class)
                                           .setParameter("tipo", tipo.toLowerCase())
                                           .getResultList();
             if (lista.isEmpty()) {
                 System.out.println("Nenhum " + tipo + " encontrado.");
             } else {
-                for (Utilizador u : lista) {
+                for (Cliente u : lista) {
                     System.out.println(u);
                 }
             }
@@ -90,25 +90,25 @@ public class Gerir {
      * apaga a conta de alguem e limpa tudo o que essa pessoa fez para a base de dados nao dar erro
      * @param id o numero da conta da pessoa a apagar
      */
-    public void removerUtilizador(Long id) {
+    public void removerCliente(Long id) {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
-            Utilizador u = session.get(Utilizador.class, id);
+            Cliente u = session.get(Cliente.class, id);
             
             if (u != null) {
-                if (u.getTipoUtilizador().equalsIgnoreCase("Admin")) {
+                if (u.getTipoCliente().equalsIgnoreCase("Admin")) {
                     System.out.println("Erro: Não tem permissão para remover um Administrador.");
                 } else {
                     
-                    List<Agendamento> agendamentosUser = session.createQuery("from Agendamento a where a.utilizador.id = :uid", Agendamento.class)
+                    List<Agendamento> agendamentosUser = session.createQuery("from Agendamento a where a.cliente.id = :uid", Agendamento.class)
                             .setParameter("uid", id).getResultList();
                     for(Agendamento a : agendamentosUser) session.remove(a);
                     
-                    List<Reclamacao> recsUser = session.createQuery("from Reclamacao r where r.utilizador.id = :uid", Reclamacao.class)
+                    List<Reclamacao> recsUser = session.createQuery("from Reclamacao r where r.cliente.id = :uid", Reclamacao.class)
                             .setParameter("uid", id).getResultList();
                     for(Reclamacao r : recsUser) session.remove(r);
 
-                    List<Objeto> objetosUser = session.createQuery("from Objeto o where o.utilizador.id = :uid", Objeto.class)
+                    List<Objeto> objetosUser = session.createQuery("from Objeto o where o.cliente.id = :uid", Objeto.class)
                             .setParameter("uid", id).getResultList();
                             
                     for(Objeto o : objetosUser) {
@@ -131,13 +131,13 @@ public class Gerir {
                     
                     session.remove(u); 
                     t.commit();
-                    System.out.println("Conta (" + u.getTipoUtilizador() + ") e todos os processos foram removidos com sucesso!");
+                    System.out.println("Conta (" + u.getTipoCliente() + ") e todos os processos foram removidos com sucesso!");
                 }
             } else {
-                System.out.println("Erro: ID de utilizador não encontrado.");
+                System.out.println("Erro: ID de cliente não encontrado.");
             }
         } catch (Exception e) {
-            System.out.println("Erro ao remover utilizador: " + e.getMessage());
+            System.out.println("Erro ao remover cliente: " + e.getMessage());
         }
     }
 
@@ -229,14 +229,14 @@ public class Gerir {
     public void atribuirFuncionarioLocal(Long userId, Long localId) {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
-            Utilizador u = session.get(Utilizador.class, userId);
+            Cliente u = session.get(Cliente.class, userId);
             Local l = session.get(Local.class, localId);
             if (u != null && l != null) { 
                 u.setLocalTrabalho(l); 
                 t.commit();
-                System.out.println("Funcionário " + u.getNomeUtilizador() + " atribuído ao local " + l.getNomeEdificio() + " com sucesso!"); 
+                System.out.println("Funcionário " + u.getNomeCliente() + " atribuído ao local " + l.getNomeEdificio() + " com sucesso!"); 
             } else {
-                System.out.println("Erro: Utilizador ou Local não encontrado.");
+                System.out.println("Erro: Cliente ou Local não encontrado.");
             }
         } catch (Exception e) {
             System.out.println("Erro ao atribuir funcionário: " + e.getMessage());
@@ -262,15 +262,15 @@ public class Gerir {
                 System.out.println("Horário: " + l.getHoraInicio() + " às " + l.getHoraFim());
                 System.out.println("----------------------------------------");
                 
-                List<Utilizador> funcionarios = session.createQuery("from Utilizador u where u.localTrabalho.id = :idLocal", Utilizador.class)
+                List<Cliente> funcionarios = session.createQuery("from Cliente u where u.localTrabalho.id = :idLocal", Cliente.class)
                                                        .setParameter("idLocal", l.getId()).getResultList();
                 
                 System.out.println("FUNCIONÁRIOS ATRIBUÍDOS:");
                 if (funcionarios.isEmpty()) {
                     System.out.println("  - Nenhum funcionário atribuído.");
                 } else {
-                    for (Utilizador f : funcionarios) {
-                        System.out.println("  - [ID: " + f.getId() + "] " + f.getNomeUtilizador() + " (" + f.getContacto() + ")");
+                    for (Cliente f : funcionarios) {
+                        System.out.println("  - [ID: " + f.getId() + "] " + f.getNomeCliente() + " (" + f.getContacto() + ")");
                     }
                 }
                 
@@ -328,7 +328,7 @@ public class Gerir {
             }
 
             Objeto obj = new Objeto(data, marca, tipo, cor, estado);
-            if (idUser != null) obj.setUtilizador(session.get(Utilizador.class, idUser));
+            if (idUser != null) obj.setCliente(session.get(Cliente.class, idUser));
             if (p != null) obj.setPrateleira(p);
             if (idLocal != null) obj.setLocalRecolha(session.get(Local.class, idLocal));
             
@@ -350,7 +350,7 @@ public class Gerir {
      */
     public void adicionarObjetoEncontrado(LocalDateTime data, String marca, String tipo, String cor, Long idUser) {
         try (Session session = sessionFactory.openSession()) {
-            Utilizador u = session.get(Utilizador.class, idUser);
+            Cliente u = session.get(Cliente.class, idUser);
             if (u.getLocalTrabalho() == null) {
                 System.out.println("Erro: Não tem nenhum local de trabalho atribuído. Não é possível registar o objeto.");
                 return;
@@ -362,7 +362,7 @@ public class Gerir {
     }
 
     /** 
-     * guarda a coisa achada para quem e utilizador normal porque o programa tem de lhe perguntar onde a deixou
+     * guarda a coisa achada para quem e Cliente normal porque o programa tem de lhe perguntar onde a deixou
      * @param data o dia e a hora
      * @param marca a marca da coisa
      * @param tipo que tipo de coisa e
@@ -377,7 +377,7 @@ public class Gerir {
                 System.out.println("Erro: Local não encontrado na base de dados.");
                 return;
             }
-            Utilizador u = session.get(Utilizador.class, idUser);
+            Cliente u = session.get(Cliente.class, idUser);
             
             registarAchadoNaPrateleira(session, data, marca, tipo, cor, u, local, false);
         } catch (Exception e) {
@@ -394,9 +394,9 @@ public class Gerir {
      * @param cor a cor
      * @param u quem esta a registar
      * @param local o edificio
-     * @param isFuncionario se foi o funcionario ou o utilizador normal
+     * @param isFuncionario se foi o funcionario ou o Cliente normal
      */
-    private void registarAchadoNaPrateleira(Session session, LocalDateTime data, String marca, String tipo, String cor, Utilizador u, Local local, boolean isFuncionario) {
+    private void registarAchadoNaPrateleira(Session session, LocalDateTime data, String marca, String tipo, String cor, Cliente u, Local local, boolean isFuncionario) {
         Transaction t = session.beginTransaction();
         Prateleira melhorPrateleira = null;
         long menorOcupacao = Long.MAX_VALUE;
@@ -415,7 +415,7 @@ public class Gerir {
         }
 
         Objeto obj = new Objeto(data, marca, tipo, cor, "Em Armazém");
-        if (u != null) obj.setUtilizador(u);
+        if (u != null) obj.setCliente(u);
         obj.setLocalRecolha(local);
 
         if (melhorPrateleira != null) {
@@ -486,7 +486,7 @@ public class Gerir {
             Transaction t = session.beginTransaction();
             Objeto perdido = session.get(Objeto.class, idPerdido);
             Objeto achado = session.get(Objeto.class, idAchado);
-            Utilizador f = session.get(Utilizador.class, idFuncionario);
+            Cliente f = session.get(Cliente.class, idFuncionario);
             
             if (f.getLocalTrabalho() == null) {
                 System.out.println("Erro: Não tem nenhum local de trabalho atribuído.");
@@ -554,18 +554,18 @@ public class Gerir {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
             Objeto o = session.get(Objeto.class, idObjeto);
-            Utilizador u = session.get(Utilizador.class, idUser);
+            Cliente u = session.get(Cliente.class, idUser);
             
             if (o != null && u != null) {
                 Reclamacao r = new Reclamacao(LocalDateTime.now(), detalhes, "Pendente");
                 r.setObjeto(o); 
-                r.setUtilizador(u);
+                r.setCliente(u);
                 
                 session.persist(r);
                 t.commit();
                 System.out.println("Reclamação submetida com sucesso! O objeto permanece na lista até decisão. (ID: " + r.getId() + ")");
             } else { 
-                System.out.println("Erro: Objeto ou Utilizador não encontrado na base de dados."); 
+                System.out.println("Erro: Objeto ou Cliente não encontrado na base de dados."); 
             }
         } catch (Exception e) {
             System.out.println("ERRO AO SUBMETER RECLAMAÇÃO: " + e.getMessage());
@@ -584,7 +584,7 @@ public class Gerir {
             } else {
                 for (Reclamacao r : recs) {
                     String objInfo = (r.getObjeto() != null) ? "Objeto ID " + r.getObjeto().getId() + " [Estado: " + r.getObjeto().getEstado() + "]" : "Sem Objeto";
-                    String userInfo = (r.getUtilizador() != null) ? "Reclamante: " + r.getUtilizador().getNomeUtilizador() : "Desconhecido";
+                    String userInfo = (r.getCliente() != null) ? "Reclamante: " + r.getCliente().getNomeCliente() : "Desconhecido";
                     System.out.println("ID Reclamação: " + r.getId() + " | " + objInfo + " | " + userInfo + " | Provas: " + r.getDetalhes());
                 }
             }
@@ -597,7 +597,7 @@ public class Gerir {
      */
     public void listarReclamacoesPendentes(Long idFuncionario) {
         try (Session session = sessionFactory.openSession()) {
-            Utilizador f = session.get(Utilizador.class, idFuncionario);
+            Cliente f = session.get(Cliente.class, idFuncionario);
             
             if (f.getLocalTrabalho() == null) {
                 System.out.println("Aviso: Não tem local de trabalho atribuído. Nenhuma reclamação disponível.");
@@ -614,7 +614,7 @@ public class Gerir {
             } else {
                 for (Reclamacao r : recs) {
                     String objInfo = (r.getObjeto() != null) ? "Objeto ID " + r.getObjeto().getId() + " [Estado: " + r.getObjeto().getEstado() + "]" : "Sem Objeto";
-                    String userInfo = (r.getUtilizador() != null) ? "Reclamante: " + r.getUtilizador().getNomeUtilizador() : "Desconhecido";
+                    String userInfo = (r.getCliente() != null) ? "Reclamante: " + r.getCliente().getNomeCliente() : "Desconhecido";
                     System.out.println("ID Reclamação: " + r.getId() + " | " + objInfo + " | " + userInfo + " | Provas: " + r.getDetalhes());
                 }
             }
@@ -630,7 +630,7 @@ public class Gerir {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
             Reclamacao r = session.get(Reclamacao.class, idReclamacao);
-            Utilizador f = session.get(Utilizador.class, idFuncionario);
+            Cliente f = session.get(Cliente.class, idFuncionario);
             
             if (r != null && "Pendente".equals(r.getEstado())) {
                 Objeto obj = r.getObjeto();
@@ -644,7 +644,7 @@ public class Gerir {
                 
                 if (obj != null) {
                     obj.setEstado("Autorizado para Levantamento");
-                    obj.setUtilizador(r.getUtilizador()); 
+                    obj.setCliente(r.getCliente()); 
                     
                     List<Reclamacao> outras = session.createQuery("from Reclamacao where objeto.id = :objId and estado = 'Pendente'", Reclamacao.class)
                                                      .setParameter("objId", obj.getId()).getResultList();
@@ -654,7 +654,7 @@ public class Gerir {
                     }
                 }
                 t.commit();
-                System.out.println("Reclamação Aprovada! O objeto está agora associado ao utilizador e pronto para Agendamento.");
+                System.out.println("Reclamação Aprovada! O objeto está agora associado ao Cliente e pronto para Agendamento.");
             } else {
                 System.out.println("Erro: Reclamação não encontrada ou já processada.");
             }
@@ -673,7 +673,7 @@ public class Gerir {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
             Reclamacao r = session.get(Reclamacao.class, idReclamacao);
-            Utilizador f = session.get(Utilizador.class, idFuncionario);
+            Cliente f = session.get(Cliente.class, idFuncionario);
             
             if (r != null && "Pendente".equals(r.getEstado())) {
                 
@@ -724,7 +724,7 @@ public class Gerir {
                 
                 Agendamento a = new Agendamento(dataHora);
                 a.setObjeto(o); 
-                a.setUtilizador(session.get(Utilizador.class, idUser));
+                a.setCliente(session.get(Cliente.class, idUser));
                 session.persist(a);
 
                 o.setEstado("Concluído");
@@ -760,7 +760,7 @@ public class Gerir {
                 System.out.println("Nenhum objeto perdido encontrado.");
             } else {
                 for (Objeto o : lista) {
-                    String dono = (o.getUtilizador() != null) ? o.getUtilizador().getNomeUtilizador() : "Desconhecido";
+                    String dono = (o.getCliente() != null) ? o.getCliente().getNomeCliente() : "Desconhecido";
                     System.out.println(o + " | Dono: " + dono);
                 }
             }
@@ -822,7 +822,7 @@ public class Gerir {
         try (Session session = sessionFactory.openSession()) {
             Objeto o = session.get(Objeto.class, id);
             if (o != null) {
-                if(o.getUtilizador() != null) o.getUtilizador().getId();
+                if(o.getCliente() != null) o.getCliente().getId();
                 if(o.getLocalRecolha() != null) o.getLocalRecolha().getHoraInicio();
                 if(o.getObjetoAssociado() != null && o.getObjetoAssociado().getLocalRecolha() != null) 
                     o.getObjetoAssociado().getLocalRecolha().getHoraInicio();
@@ -832,16 +832,16 @@ public class Gerir {
     }
     
     /** 
-     * diz ao utilizador em que pe estao as coisas dele e se algo chumbou diz o porque
+     * diz ao Cliente em que pe estao as coisas dele e se algo chumbou diz o porque
      * @param userId o id de quem quer ver
      */
     public void listarMeusProcessos(Long userId) { 
         try (Session session = sessionFactory.openSession()) {
-            List<Objeto> meusObjetos = session.createQuery("from Objeto o where o.utilizador.id = :id and o.estado != 'Arquivado (Correspondido)'", Objeto.class)
+            List<Objeto> meusObjetos = session.createQuery("from Objeto o where o.cliente.id = :id and o.estado != 'Arquivado (Correspondido)'", Objeto.class)
                                               .setParameter("id", userId)
                                               .getResultList();
             
-            List<Reclamacao> minhasReclamacoes = session.createQuery("from Reclamacao r where r.utilizador.id = :id", Reclamacao.class)
+            List<Reclamacao> minhasReclamacoes = session.createQuery("from Reclamacao r where r.cliente.id = :id", Reclamacao.class)
                                                         .setParameter("id", userId)
                                                         .getResultList();
 
@@ -897,11 +897,11 @@ public class Gerir {
     }
 
     /** 
-     * vai buscar os utilizadores normais os funcionarios e admins
+     * vai buscar os Clientes normais os funcionarios e admins
      * @return lista de malta registada
      */
-    public List<Utilizador> getUtilizadores() { 
-        try (Session s = sessionFactory.openSession()) { return s.createQuery("from Utilizador", Utilizador.class).getResultList(); }
+    public List<Cliente> getClientes() { 
+        try (Session s = sessionFactory.openSession()) { return s.createQuery("from Cliente", Cliente.class).getResultList(); }
     }
 
     /** 

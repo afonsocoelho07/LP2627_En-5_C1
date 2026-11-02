@@ -31,10 +31,10 @@ public class Objeto {
     /** estado atual do objeto */
     private String estado; 
 
-    /** utilizador associado ao objeto */
+    /** Cliente associado ao objeto */
     @ManyToOne
-    @JoinColumn(name = "utilizador_id")
-    private Utilizador utilizador;
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
 
     /** prateleira onde o objeto esta guardado */
     @ManyToOne
@@ -98,14 +98,14 @@ public class Objeto {
         this.estado = estado; 
     }
 
-    /** devolve o utilizador associado */
-    public Utilizador getUtilizador() { 
-        return utilizador; 
+    /** devolve o Cliente associado */
+    public Cliente getCliente() { 
+        return cliente; 
     }
 
-    /** define o utilizador associado */
-    public void setUtilizador(Utilizador utilizador) { 
-        this.utilizador = utilizador; 
+    /** define o Cliente associado */
+    public void setCliente(Cliente cliente) { 
+        this.cliente = cliente; 
     }
 
     /** devolve a prateleira onde esta guardado */

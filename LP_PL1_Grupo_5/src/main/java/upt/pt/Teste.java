@@ -14,12 +14,12 @@ public class Teste {
     public static void main(String[] args) {
         Gerir gerir = new Gerir();
         Scanner scanner = new Scanner(System.in); 
-        Utilizador utilizadorLogado = null;
+        Cliente clienteLogado = null;
         int opcao = -1;
 
         while (opcao != 0) {
             
-            if (utilizadorLogado == null) {
+            if (clienteLogado == null) {
                 System.out.println("\n--- BEM-VINDO AO ACHADOS E PERDIDOS ---");
                 System.out.println("1. Login");
                 System.out.println("2. Criar Conta");
@@ -35,12 +35,12 @@ public class Teste {
                     System.out.print("Password: "); 
                     String password = scanner.nextLine();
                     
-                    utilizadorLogado = gerir.fazerLogin(idLogin, password);
+                    clienteLogado = gerir.fazerLogin(idLogin, password);
                     
-                    if (utilizadorLogado == null) {
+                    if (clienteLogado == null) {
                         System.out.println("Erro: Credenciais Inválidas!");
                     } else {
-                        System.out.println("Login com sucesso! Perfil: " + utilizadorLogado.getTipoUtilizador());
+                        System.out.println("Login com sucesso! Perfil: " + clienteLogado.getTipoCliente());
                     }
                     
                 } else if (opcao == 2) {
@@ -67,16 +67,16 @@ public class Teste {
                     
                     String nome = gerir.lerTextoObrigatorio(scanner, "Nome: ");
                     
-                    System.out.print("Tipo (Admin, Funcionario, Utilizador): "); 
+                    System.out.print("Tipo (Admin, Funcionario, Cliente): "); 
                     String tipo = scanner.nextLine().trim();
-                    if (!tipo.equalsIgnoreCase("Admin") && !tipo.equalsIgnoreCase("Funcionario") && !tipo.equalsIgnoreCase("Utilizador")) {
+                    if (!tipo.equalsIgnoreCase("Admin") && !tipo.equalsIgnoreCase("Funcionario") && !tipo.equalsIgnoreCase("Cliente")) {
                         System.out.println("Erro: Tipo inválido."); 
                         continue;
                     }
                     
                     String password = gerir.lerTextoObrigatorio(scanner, "Password: ");
                     
-                    gerir.adicionarUtilizador(tipo, password, nome, email, contacto);
+                    gerir.adicionarCliente(tipo, password, nome, email, contacto);
                     System.out.println("Conta criada!");
                     
                 } else if (opcao == 0) { 
@@ -89,14 +89,14 @@ public class Teste {
                 }
                 
             } else {
-                String perfil = utilizadorLogado.getTipoUtilizador();
+                String perfil = clienteLogado.getTipoCliente();
                 
                 if (perfil.equalsIgnoreCase("Admin")) {
-                    utilizadorLogado = menuAdmin(gerir, scanner, utilizadorLogado);
+                	clienteLogado = menuAdmin(gerir, scanner, clienteLogado);
                 } else if (perfil.equalsIgnoreCase("Funcionario")) {
-                    utilizadorLogado = menuFuncionario(gerir, scanner, utilizadorLogado);
+                	clienteLogado = menuFuncionario(gerir, scanner, clienteLogado);
                 } else {
-                    utilizadorLogado = menuUtilizador(gerir, scanner, utilizadorLogado);
+                    clienteLogado = menuCliente(gerir, scanner, clienteLogado);
                 }
             }
         }
@@ -107,14 +107,14 @@ public class Teste {
      * mostra e controla as opcoes da pessoa normal
      * @param gerir ligacao a base de dados
      * @param scanner le as teclas
-     * @param utilizador quem entrou no sistema
+     * @param Cliente quem entrou no sistema
      * @return devolve a conta ou nulo para sair
      */
-    private static Utilizador menuUtilizador(Gerir gerir, Scanner scanner, Utilizador utilizador) {
+    private static Cliente menuCliente(Gerir gerir, Scanner scanner, Cliente cliente) {
         int opcao = -1;
         
         while (opcao != 0) {
-            System.out.println("\n--- MENU UTILIZADOR ---");
+            System.out.println("\n--- MENU Cliente ---");
             System.out.println("1. Registar Objeto Perdido");
             System.out.println("2. Entregar Objeto Encontrado no Edifício");
             System.out.println("3. Listar Objetos Achados/Disponíveis");
@@ -136,7 +136,7 @@ public class Teste {
                     String tipoPerdido = gerir.lerTextoObrigatorio(scanner, "Tipo (ex: Eletronica): ");
                     String corPerdida = gerir.lerTextoObrigatorio(scanner, "Cor: ");
                     
-                    gerir.adicionarObjeto(LocalDateTime.now(), marcaPerdido, tipoPerdido, corPerdida, "Perdido", utilizador.getId(), null, null);
+                    gerir.adicionarObjeto(LocalDateTime.now(), marcaPerdido, tipoPerdido, corPerdida, "Perdido", cliente.getId(), null, null);
                     System.out.println("Registado como Perdido!"); 
                     break;
                     
@@ -159,7 +159,7 @@ public class Teste {
                     Long idLocal = gerir.lerLong(scanner);
                     if (idLocal == -1L) break;
                     
-                    gerir.adicionarObjetoEncontrado(LocalDateTime.now(), marcaEncontrado, tipoEncontrado, corEncontrada, utilizador.getId(), idLocal);
+                    gerir.adicionarObjetoEncontrado(LocalDateTime.now(), marcaEncontrado, tipoEncontrado, corEncontrada, cliente.getId(), idLocal);
                     break;
                     
                 case 3:
@@ -182,7 +182,7 @@ public class Teste {
                     if (idReclamar == -1L) break;
                     
                     String detalhes = gerir.lerTextoObrigatorio(scanner, "Detalhes/Provas (ex: capa amarela, rachadela no ecrã): ");
-                    gerir.submeterReclamacao(idReclamar, utilizador.getId(), detalhes); 
+                    gerir.submeterReclamacao(idReclamar, cliente.getId(), detalhes); 
                     break;
                     
                 case 7:
@@ -196,7 +196,7 @@ public class Teste {
                         break;
                     }
                     
-                    boolean meuObjeto = (objAgendar.getUtilizador() != null && objAgendar.getUtilizador().getId().equals(utilizador.getId()));
+                    boolean meuObjeto = (objAgendar.getCliente() != null && objAgendar.getCliente().getId().equals(cliente.getId()));
                     if (!meuObjeto) {
                         System.out.println("Erro: Não tem permissão para agendar a recolha de um objeto que não é o seu.");
                         break;
@@ -257,12 +257,12 @@ public class Teste {
                     }
                     
                     LocalDateTime dataRecolha = LocalDateTime.now().withHour(horaDigitada.getHour()).withMinute(horaDigitada.getMinute());
-                    gerir.agendarRecolha(idAgendar, utilizador.getId(), dataRecolha); 
+                    gerir.agendarRecolha(idAgendar, cliente.getId(), dataRecolha); 
                     break;
                     
                 case 8:
                     System.out.println("MEUS PROCESSOS:"); 
-                    gerir.listarMeusProcessos(utilizador.getId()); 
+                    gerir.listarMeusProcessos(cliente.getId()); 
                     break;
 
                 case 9:
@@ -278,17 +278,17 @@ public class Teste {
                     break;
             }
         }
-        return utilizador;
+        return cliente;
     }
     
     /** 
      * mostra e controla o que os funcionarios podem fazer
      * @param gerir ligacao a base de dados
      * @param scanner le os numeros
-     * @param utilizador o funcionario
+     * @param Cliente o funcionario
      * @return devolve nulo se ele bazar
      */
-    private static Utilizador menuFuncionario(Gerir gerir, Scanner scanner, Utilizador utilizador) {
+    private static Cliente menuFuncionario(Gerir gerir, Scanner scanner, Cliente cliente) {
         int opcao = -1;
         
         while (opcao != 0) {
@@ -314,7 +314,7 @@ public class Teste {
                     String tipo = gerir.lerTextoObrigatorio(scanner, "Tipo: ");
                     String cor = gerir.lerTextoObrigatorio(scanner, "Cor: ");
                     
-                    gerir.adicionarObjetoEncontrado(LocalDateTime.now(), marca, tipo, cor, utilizador.getId());
+                    gerir.adicionarObjetoEncontrado(LocalDateTime.now(), marca, tipo, cor, cliente.getId());
                     break;
                     
                 case 2:
@@ -334,19 +334,19 @@ public class Teste {
                     Long idAchado = gerir.lerLong(scanner);
                     
                     if (idPerdido != -1L && idAchado != -1L) {
-                        gerir.associarManual(idPerdido, idAchado, utilizador.getId()); 
+                        gerir.associarManual(idPerdido, idAchado, cliente.getId()); 
                     }
                     break;
                     
                 case 5:
                     System.out.println("--- RECLAMAÇÕES ATIVAS NO MEU EDIFÍCIO ---");
-                    gerir.listarReclamacoesPendentes(utilizador.getId()); 
+                    gerir.listarReclamacoesPendentes(cliente.getId()); 
                     break;
                     
                 case 6:
                     System.out.print("ID da Reclamação a Aprovar: ");
                     Long idAprovar = gerir.lerLong(scanner);
-                    if (idAprovar != -1L) gerir.aprovarReclamacao(idAprovar, utilizador.getId()); 
+                    if (idAprovar != -1L) gerir.aprovarReclamacao(idAprovar, cliente.getId()); 
                     break;
                     
                 case 7:
@@ -354,7 +354,7 @@ public class Teste {
                     Long idRejeitar = gerir.lerLong(scanner);
                     if (idRejeitar != -1L) {
                         String motivo = gerir.lerTextoObrigatorio(scanner, "Motivo da rejeição: ");
-                        gerir.rejeitarReclamacao(idRejeitar, motivo, utilizador.getId()); 
+                        gerir.rejeitarReclamacao(idRejeitar, motivo, cliente.getId()); 
                     }
                     break;
                     
@@ -377,17 +377,17 @@ public class Teste {
                     break;
             }
         }
-        return utilizador;
+        return cliente;
     }
     
     /** 
      * mostra tudo o que o admin pode gerir
      * @param gerir ligacao a base de dados
      * @param scanner le os numeros
-     * @param utilizador o chefe que entrou
+     * @param Cliente o chefe que entrou
      * @return devolve nulo se ele sair
      */
-    private static Utilizador menuAdmin(Gerir gerir, Scanner scanner, Utilizador utilizador) {
+    private static Cliente menuAdmin(Gerir gerir, Scanner scanner, Cliente cliente) {
         int opcao = -1;
         
         while (opcao != 0) {
@@ -396,11 +396,11 @@ public class Teste {
             System.out.println("2. Atribuir Funcionário a Local");
             System.out.println("3. Criar Armazém");
             System.out.println("4. Criar Prateleira");
-            System.out.println("5. Listar Objetos e Utilizadores");
+            System.out.println("5. Listar Objetos e Clientes");
             System.out.println("6. Ver Estatística de Entregas");
             System.out.println("7. Listar Funcionários");
-            System.out.println("8. Listar Utilizadores(normais)");
-            System.out.println("9. Remover Funcionário ou Utilizador");
+            System.out.println("8. Listar Clientes(normais)");
+            System.out.println("9. Remover Funcionário ou Cliente");
             System.out.println("10. Listar Edifícios (Horários, Funcionários e Lotação)");
             System.out.println("0. Fazer Logout");
             
@@ -501,8 +501,8 @@ public class Teste {
                     break;
                     
                 case 5:
-                    System.out.println("--- UTILIZADORES ---");
-                    for (Utilizador user : gerir.getUtilizadores()) System.out.println(user);
+                    System.out.println("--- Clientes ---");
+                    for (Cliente user : gerir.getClientes()) System.out.println(user);
                     
                     System.out.println("\n--- OBJETOS ---");
                     for (Objeto objeto : gerir.getTodosObjetos()) System.out.println(objeto);
@@ -514,18 +514,18 @@ public class Teste {
                     
                 case 7:
                     System.out.println("--- LISTA DE FUNCIONÁRIOS ---");
-                    gerir.listarUtilizadoresPorTipo("funcionario"); 
+                    gerir.listarClientePorTipo("funcionario"); 
                     break;
                     
                 case 8:
-                    System.out.println("--- LISTA DE UTILIZADORES COMUNS ---");
-                    gerir.listarUtilizadoresPorTipo("utilizador"); 
+                    System.out.println("--- LISTA DE CLIENTES COMUNS ---");
+                    gerir.listarClientePorTipo("cliente"); 
                     break;
                     
                 case 9:
                     System.out.print("Introduza o ID da conta a remover: ");
                     Long idRemover = gerir.lerLong(scanner);
-                    if (idRemover != -1L) gerir.removerUtilizador(idRemover); 
+                    if (idRemover != -1L) gerir.removerCliente(idRemover); 
                     break;
                     
                 case 10:
@@ -540,6 +540,6 @@ public class Teste {
                     break;
             }
         }
-        return utilizador;
+        return cliente;
     }
 }

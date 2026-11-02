@@ -5,28 +5,28 @@ import java.util.List;
 import jakarta.persistence.*;
 
 /** 
- * esta classe cria a tabela dos utilizadores na base de dados
+ * esta classe cria a tabela dos Clientes na base de dados
  * guarda as contas todas dos administradores funcionarios e pessoas normais
  */
 @Entity
-@Table(name = "utilizador")
-public class Utilizador {
+@Table(name = "cliente")
+public class Cliente {
 
     /** o numero de identificacao que e dado as pessoas automaticamente */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** diz se a pessoa e admin funcionario ou apenas utilizador */
-    @Column(name = "tipo_utilizador")
-    private String tipoUtilizador;
+    /** diz se a pessoa e admin funcionario ou apenas Cliente */
+    @Column(name = "tipo_cliente")
+    private String tipoCliente;
 
     /** a palavra passe para fazer login */
     private String password;
     
     /** o nome verdadeiro da pessoa */
-    @Column(name = "nome_utilizador")
-    private String nomeUtilizador;
+    @Column(name = "nome_cliente")
+    private String nomeCliente;
 
     /** o email dela que e unico e nao da para repetir noutra conta */
     @Column(unique = true)
@@ -37,7 +37,7 @@ public class Utilizador {
     private int contacto;
 
     /** a lista com as coisas todas que a pessoa registou */
-    @OneToMany(mappedBy = "utilizador", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL)
     private List<Objeto> objetos = new ArrayList<>();
 
     /** o edificio onde a pessoa trabalha se for um funcionario */
@@ -48,20 +48,20 @@ public class Utilizador {
     /** 
      * o hibernate obriga a ter um contrutor vazio para funcionar bem e criar tabelas
      */
-    public Utilizador() {}
+    public Cliente() {}
 
     /** 
      * construtor para criar uma conta nova e preencher logo os dados dela
-     * @param tipoUtilizador que tipo de conta e
+     * @param tipoCliente que tipo de conta e
      * @param password a senha de entrar
-     * @param nomeUtilizador o nome da pessoa
+     * @param nomeCliente o nome da pessoa
      * @param email o email para contacto
      * @param contacto o telemovel
      */
-    public Utilizador(String tipoUtilizador, String password, String nomeUtilizador, String email, int contacto) {
-        this.tipoUtilizador = tipoUtilizador;
+    public Cliente(String tipoCliente, String password, String nomeCliente, String email, int contacto) {
+        this.tipoCliente = tipoCliente;
         this.password = password;
-        this.nomeUtilizador = nomeUtilizador;
+        this.nomeCliente = nomeCliente;
         this.email = email;
         this.contacto = contacto;
     }
@@ -76,7 +76,7 @@ public class Utilizador {
      * ve que tipo de perfil a pessoa tem
      * @return diz se e admin ou outra coisa
      */
-    public String getTipoUtilizador() { return tipoUtilizador; }
+    public String getTipoCliente() { return tipoCliente; }
 
     /** 
      * vai ler a palavra passe
@@ -88,7 +88,7 @@ public class Utilizador {
      * mostra o nome da pessoa
      * @return o nome
      */
-    public String getNomeUtilizador() { return nomeUtilizador; }
+    public String getNomeCliente() { return nomeCliente; }
 
     /** 
      * da o email da conta
@@ -126,7 +126,10 @@ public class Utilizador {
      */
     @Override
     public String toString() {
-        return "id: " + id + " | nome: " + nomeUtilizador + " | email: " + email + " | contacto: " + contacto + " | perfil: " + tipoUtilizador + 
+        return "id: " + id + " | nome: " + nomeCliente + " | email: " + email + " | contacto: " + contacto + " | perfil: " + tipoCliente + 
                (localTrabalho != null ? " | local: " + localTrabalho.getNomeEdificio() : "");
     }
+
+
+	
 }

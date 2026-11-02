@@ -43,8 +43,8 @@ public class Reclamacao {
      * pessoa que fez a queixa
      */
     @ManyToOne
-    @JoinColumn(name = "utilizador_id")
-    private Utilizador utilizador;
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
 
     /**
      * coisa sobre a qual estao a queixar se
@@ -130,18 +130,18 @@ public class Reclamacao {
     /**
      * apanha a pessoa que fez a queixa
      * 
-     * @return o utilizador
+     * @return o Cliente
      */
-    public Utilizador getUtilizador() { 
-        return utilizador; }
+    public Cliente getCliente() { 
+        return cliente; }
 
     /**
      * define quem e a pessoa que esta a queixar se
      * 
-     * @param utilizador quem fez a queixa
+     * @param Cliente quem fez a queixa
      */
-    public void setUtilizador(Utilizador utilizador) { 
-        this.utilizador = utilizador; }
+    public void setCliente(Cliente cliente) { 
+        this.cliente = cliente; }
 
     /**
      * apanha a coisa relacionada com a queixa
@@ -167,6 +167,6 @@ public class Reclamacao {
     @Override
     public String toString() {
         return "Reclamação ID: " + id + " | Estado: " + estado + " | Objeto ID: " + (objeto != null ? objeto.getId() : "N/A") + 
-               " | Reclamante: " + (utilizador != null ? utilizador.getNomeUtilizador() : "N/A");
+               " | Reclamante: " + (cliente != null ? cliente.getNomeCliente() : "N/A");
     }
 }
