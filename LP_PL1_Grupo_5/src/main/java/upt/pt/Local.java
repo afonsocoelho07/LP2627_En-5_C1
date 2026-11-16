@@ -27,6 +27,10 @@ public class Local {
     @OneToMany(mappedBy = "local", cascade = CascadeType.ALL)
     private List<Armazem> armazens = new ArrayList<>();
 
+    // Um edificio pode conter varios pontos Locky.
+    @OneToMany(mappedBy = "local", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    private List<PontoLocky> pontosLocky = new ArrayList<>();
+
     public Local() {
     }
 
@@ -65,6 +69,15 @@ public class Local {
     public void addArmazem(Armazem armazem) {
         armazens.add(armazem);
         armazem.setLocal(this);
+    }
+
+    public List<PontoLocky> getPontosLocky() {
+        return pontosLocky;
+    }
+
+    public void addPontoLocky(PontoLocky ponto) {
+        pontosLocky.add(ponto);
+        ponto.setLocal(this);
     }
 
     @Override

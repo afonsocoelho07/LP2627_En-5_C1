@@ -3,6 +3,8 @@ package upt.pt;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
+import org.hibernate.LockMode;
+import jakarta.persistence.LockModeType;
 import org.hibernate.cfg.Configuration;
 
 import java.time.LocalDateTime;
@@ -1001,6 +1003,349 @@ public class Gerir {
                     String dono = (o.getUtilizador() != null) ? o.getUtilizador().getNomeUtilizador() : "Desconhecido";
                     System.out.println(o + " | Dono: " + dono);
                 }
+            }
+        }
+    }
+
+    // ================================================================
+    // MODULO LOCKY — nao trata prazos, agendamentos nem recolha final.
+    // ================================================================
+
+    /** Usado para verificar permissoes dentro de Gerir (nao so nos menus). */
+    private boolean temPerfil(Utilizador utilizador, String... perfis) {
+        if (utilizador == null || utilizador.getTipoUtilizador() == null) return false;
+        for (String perfil : perfis) {
+            if (perfil.equalsIgnoreCase(utilizador.getTipoUtilizador())) return true;
+        }
+        return false;
+    }
+
+    /** ADMIN: cria uma estacao Locky e os seus cacifos. */
+    public void adicionarPontoLocky(String nome, String descricao,
+                                    Long idLocal, int quantidade, Long idAdmin) {
+        if (quantidade < 1 || quantidade > 100) {
+            System.out.println("Indique entre 1 e 100 cacifos.");
+            return;
+        }
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                Utilizador admin = session.get(Utilizador.class, idAdmin);
+                if (!temPerfil(admin, "Admin", "Administrador"))
+                    throw new SecurityException("Apenas o administrador pode criar pontos.");
+
+                Local local = session.get(Local.class, idLocal);
+                if (local == null) throw new IllegalArgumentException("Local inexistente.");
+
+                PontoLocky ponto = new PontoLocky(nome, descricao, local);
+                for (int i = 1; i <= quantidade; i++) {
+                    ponto.addCacifo(new Locky(String.format("L%02d", i), ponto));
+                }
+                session.persist(ponto); // propaga a persistencia para os cacifos
+                tx.commit();
+                System.out.println("Ponto criado: ID " + ponto.getId()
+                    + ", edificio " + local.getNomeEdificio()
+                    + ", cacifos: " + quantidade);
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro ao criar ponto Locky: " + e.getMessage());
+            }
+        }
+    }
+
+    /** ADMIN: acrescenta um cacifo a um ponto existente. */
+    public void adicionarCacifoAoPonto(Long idPonto, String codigo, Long idAdmin) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                if (!temPerfil(session.get(Utilizador.class, idAdmin), "Admin", "Administrador"))
+                    throw new SecurityException("Permissao negada.");
+
+                PontoLocky ponto = session.find(PontoLocky.class, idPonto,
+                    LockModeType.PESSIMISTIC_WRITE);
+                if (ponto == null) throw new IllegalArgumentException("Ponto inexistente.");
+
+                Locky novo = new Locky(codigo, ponto);
+                ponto.addCacifo(novo);
+                session.persist(novo);
+                tx.commit();
+                System.out.println("Novo cacifo " + codigo + " adicionado ao ponto #" + idPonto);
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro ao adicionar cacifo: " + e.getMessage());
+            }
+        }
+    }
+
+    /** Lista os pontos e a sua disponibilidade, sem revelar codigos secretos. */
+    public void listarPontosLocky() {
+        try (Session session = sessionFactory.openSession()) {
+            List<PontoLocky> pontos = session.createQuery(
+                "from PontoLocky p order by p.local.nomeEdificio, p.nome",
+                PontoLocky.class).getResultList();
+            if (pontos.isEmpty()) {
+                System.out.println("Nao existem pontos Locky.");
+                return;
+            }
+            for (PontoLocky p : pontos) {
+                Long livres = session.createQuery(
+                    "select count(c) from Locky c where c.pontoLocky.id = :id and c.estado = :estado",
+                    Long.class)
+                    .setParameter("id", p.getId())
+                    .setParameter("estado", Locky.EstadoLocky.LIVRE)
+                    .uniqueResult();
+                System.out.println(p + " | Livres: " + livres + "/" + p.getCacifos().size());
+            }
+        }
+    }
+
+    /** ADMIN: mostra todos os cacifos de um ponto. */
+    public void listarCacifosPonto(Long idPonto, Long idAdmin) {
+        try (Session session = sessionFactory.openSession()) {
+            if (!temPerfil(session.get(Utilizador.class, idAdmin), "Admin", "Administrador")) {
+                System.out.println("Permissao negada.");
+                return;
+            }
+            PontoLocky ponto = session.get(PontoLocky.class, idPonto);
+            if (ponto == null) {
+                System.out.println("Ponto nao encontrado.");
+                return;
+            }
+            System.out.println("Cacifos do ponto: " + ponto.getNome());
+            for (Locky cacifo : ponto.getCacifos()) {
+                System.out.println("ID " + cacifo.getId() + " | " + cacifo);
+            }
+        }
+    }
+
+    /** Verifica a titularidade antes de guardar um ID no submenu do cliente. */
+    public boolean reclamacaoPertenceAoCliente(Long idReclamacao, Long idCliente) {
+        if (idReclamacao == null || idCliente == null) return false;
+        try (Session session = sessionFactory.openSession()) {
+            Long total = session.createQuery(
+                "select count(r) from Reclamacao r where r.id = :id "
+                + "and r.utilizador.id = :cliente", Long.class)
+                .setParameter("id", idReclamacao)
+                .setParameter("cliente", idCliente)
+                .uniqueResult();
+            return total != null && total > 0;
+        }
+    }
+
+    /** CLIENTE: escolhe atendimento presencial apos aprovacao da reclamacao. */
+    public void escolherLevantamentoPresencial(Long idReclamacao,
+                                               Long idCliente, Long idLocal) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                Reclamacao r = session.find(Reclamacao.class, idReclamacao,
+                    LockModeType.PESSIMISTIC_WRITE);
+                Local local = session.get(Local.class, idLocal);
+                if (r == null || local == null || r.getUtilizador() == null
+                    || !idCliente.equals(r.getUtilizador().getId()))
+                    throw new IllegalArgumentException("Reclamacao ou local invalido.");
+                if (!"Aprovada".equalsIgnoreCase(r.getEstado()))
+                    throw new IllegalStateException("A reclamacao ainda nao foi aprovada.");
+                if (r.getTipoLevantamento() != null)
+                    throw new IllegalStateException("Ja foi escolhida uma modalidade.");
+                if (r.getObjeto() == null || r.getObjeto().getLocalRecolha() == null
+                    || !local.getId().equals(r.getObjeto().getLocalRecolha().getId()))
+                    throw new IllegalArgumentException("O objeto esta guardado noutro edificio.");
+
+                r.escolherPresencial(local);
+                tx.commit();
+                System.out.println("Levantamento presencial escolhido: " + local.getNomeEdificio());
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro na escolha presencial: " + e.getMessage());
+            }
+        }
+    }
+
+    /** CLIENTE: escolhe um ponto; o sistema atribui o primeiro cacifo livre. */
+    public void escolherLevantamentoLocky(Long idReclamacao,
+                                          Long idCliente, Long idPonto) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                // Bloqueia a reclamacao e o ponto durante a reserva (evita conflitos).
+                Reclamacao r = session.find(Reclamacao.class, idReclamacao,
+                    LockModeType.PESSIMISTIC_WRITE);
+                PontoLocky ponto = session.find(PontoLocky.class, idPonto,
+                    LockModeType.PESSIMISTIC_WRITE);
+                if (r == null || ponto == null || r.getUtilizador() == null
+                    || !idCliente.equals(r.getUtilizador().getId()))
+                    throw new IllegalArgumentException("Reclamacao ou ponto invalido.");
+                if (!"Aprovada".equalsIgnoreCase(r.getEstado()))
+                    throw new IllegalStateException("A reclamacao nao esta aprovada.");
+                if (r.getTipoLevantamento() != null)
+                    throw new IllegalStateException("Ja existe uma modalidade escolhida.");
+                if (r.getObjeto() == null || r.getObjeto().getLocalRecolha() == null
+                    || !ponto.getLocal().getId().equals(r.getObjeto().getLocalRecolha().getId()))
+                    throw new IllegalArgumentException("Este ponto fica noutro edificio.");
+
+                Locky cacifo = ponto.primeiroCacifoDisponivel();
+                if (cacifo == null) throw new IllegalStateException(
+                    "Nao existem cacifos livres. Escolha outro ponto ou levantamento presencial.");
+                if (!cacifo.reservar(r))
+                    throw new IllegalStateException("Nao foi possivel reservar o cacifo.");
+
+                r.escolherLocky(ponto);
+                tx.commit();
+                System.out.println("Reservado: " + ponto.getNome()
+                    + " | cacifo " + cacifo.getCodigoCacifo()
+                    + " | Aguardar deposito pelo funcionario.");
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro na escolha Locky: " + e.getMessage());
+            }
+        }
+    }
+
+    /** FUNCIONARIO: mostra os cacifos reservados do seu edificio. */
+    public void listarLockysPorPreparar(Long idFuncionario) {
+        try (Session session = sessionFactory.openSession()) {
+            Utilizador f = session.get(Utilizador.class, idFuncionario);
+            if (!temPerfil(f, "Funcionario", "Funcionário") || f.getLocalTrabalho() == null) {
+                System.out.println("Funcionario sem local de trabalho valido.");
+                return;
+            }
+            List<Locky> lista = session.createQuery(
+                "from Locky l where l.estado = :estado and l.pontoLocky.local.id = :idLocal "
+                + "order by l.pontoLocky.nome, l.codigoCacifo", Locky.class)
+                .setParameter("estado", Locky.EstadoLocky.RESERVADO)
+                .setParameter("idLocal", f.getLocalTrabalho().getId())
+                .getResultList();
+            if (lista.isEmpty()) System.out.println("Nenhum deposito pendente.");
+            for (Locky l : lista) {
+                System.out.println("Reclamacao #" + l.getReclamacaoReservada().getId()
+                    + " | Objeto #" + l.getReclamacaoReservada().getObjeto().getId()
+                    + " | Ponto " + l.getPontoLocky().getNome()
+                    + " | CACIFO " + l.getCodigoCacifo());
+            }
+        }
+    }
+
+    /** FUNCIONARIO: confirma fisicamente o deposito do objeto reservado. */
+    public void depositarObjetoNoLocky(Long idReclamacao, Long idFuncionario) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                Utilizador f = session.get(Utilizador.class, idFuncionario);
+                if (!temPerfil(f, "Funcionario", "Funcionário") || f.getLocalTrabalho() == null)
+                    throw new SecurityException("Funcionario nao autorizado.");
+
+                Locky l = session.createQuery(
+                    "from Locky l where l.reclamacaoReservada.id = :id", Locky.class)
+                    .setParameter("id", idReclamacao).uniqueResult();
+                if (l == null) throw new IllegalArgumentException("Reserva inexistente.");
+                session.lock(l, LockMode.PESSIMISTIC_WRITE);
+                if (!f.getLocalTrabalho().getId().equals(l.getPontoLocky().getLocal().getId()))
+                    throw new SecurityException("O cacifo pertence a outro edificio.");
+                if (!l.depositar(l.getReclamacaoReservada().getObjeto()))
+                    throw new IllegalStateException("Deposito nao permitido.");
+
+                tx.commit();
+                System.out.println("Deposito confirmado no " + l.getCodigoCacifo()
+                    + ". O cliente ja pode pedir o codigo de acesso.");
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro no deposito: " + e.getMessage());
+            }
+        }
+    }
+
+    /** CLIENTE: gera e apresenta o codigo uma unica vez apos o deposito. */
+    public void emitirCodigoLocky(Long idReclamacao, Long idCliente) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                Reclamacao r = session.get(Reclamacao.class, idReclamacao);
+                if (r == null || r.getUtilizador() == null
+                    || !idCliente.equals(r.getUtilizador().getId()))
+                    throw new SecurityException("Reclamacao nao pertence ao cliente.");
+                Locky l = session.createQuery(
+                    "from Locky l where l.reclamacaoReservada.id = :id", Locky.class)
+                    .setParameter("id", idReclamacao).uniqueResult();
+                if (l == null) throw new IllegalArgumentException("Sem Locky reservado.");
+                session.lock(l, LockMode.PESSIMISTIC_WRITE);
+                String codigo = l.emitirCodigoAcesso();
+                tx.commit();
+                System.out.println("Codigo para o cacifo " + l.getCodigoCacifo()
+                    + " (apresentado uma vez): " + codigo);
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro ao emitir codigo: " + e.getMessage());
+            }
+        }
+    }
+
+    /** CLIENTE: valida codigo. Abertura nao conclui a recolha. */
+    public void abrirLocky(Long idReclamacao, Long idCliente, String codigo) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                Reclamacao r = session.get(Reclamacao.class, idReclamacao);
+                if (r == null || r.getUtilizador() == null
+                    || !idCliente.equals(r.getUtilizador().getId()))
+                    throw new SecurityException("Reclamacao nao pertence ao cliente.");
+                Locky l = session.createQuery(
+                    "from Locky l where l.reclamacaoReservada.id = :id", Locky.class)
+                    .setParameter("id", idReclamacao).uniqueResult();
+                if (l == null) throw new IllegalArgumentException("Locky inexistente.");
+                session.lock(l, LockMode.PESSIMISTIC_WRITE);
+                boolean abriu = l.abrirComCodigo(codigo);
+                tx.commit(); // guarda tambem as tentativas incorretas
+                System.out.println(abriu ? "Abertura autorizada! Pode retirar o objeto."
+                    : "Codigo incorreto, bloqueado ou ja utilizado.");
+                if (abriu) System.out.println(
+                    "A recolha realizada");
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro na abertura: " + e.getMessage());
+            }
+        }
+    }
+
+    /** CLIENTE: consulta a preferencia e o estado de preparacao. */
+    public void consultarMeuLevantamento(Long idReclamacao, Long idCliente) {
+        try (Session session = sessionFactory.openSession()) {
+            Reclamacao r = session.get(Reclamacao.class, idReclamacao);
+            if (r == null || r.getUtilizador() == null
+                    || !idCliente.equals(r.getUtilizador().getId())) {
+                System.out.println("Reclamacao nao encontrada na sua conta.");
+                return;
+            }
+            System.out.println("Tipo: " + (r.getTipoLevantamento() == null
+                ? "Nao escolhido" : r.getTipoLevantamento()));
+            if (r.getLocalLevantamento() != null)
+                System.out.println("Local: " + r.getLocalLevantamento().getNomeEdificio());
+            if (r.getPontoLockyEscolhido() != null) {
+                System.out.println("Ponto: " + r.getPontoLockyEscolhido().getNome());
+                Locky l = session.createQuery(
+                    "from Locky l where l.reclamacaoReservada.id = :id", Locky.class)
+                    .setParameter("id", idReclamacao).uniqueResult();
+                if (l != null) System.out.println("Cacifo " + l.getCodigoCacifo()
+                    + " | " + l.getEstado() + " | Abertura autorizada: " + l.isPortaAberta());
+            }
+        }
+    }
+
+    /** ADMIN: limpa o bloqueio de tentativas de um cacifo, apos verificacao presencial. */
+    public void desbloquearLocky(Long idCacifo, Long idAdmin) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                if (!temPerfil(session.get(Utilizador.class, idAdmin), "Admin", "Administrador"))
+                    throw new SecurityException("Permissao negada.");
+                Locky l = session.find(Locky.class, idCacifo, LockModeType.PESSIMISTIC_WRITE);
+                if (l == null || !l.desbloquearTentativas())
+                    throw new IllegalStateException("Cacifo nao esta bloqueado ou nao existe.");
+                tx.commit();
+                System.out.println("Tentativas desbloqueadas para o cacifo #" + idCacifo);
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                System.out.println("Erro ao desbloquear: " + e.getMessage());
             }
         }
     }
