@@ -332,6 +332,25 @@ public class Teste {
             }
         }
     }
+    
+    private static void menuCorrespondencias(Scanner scanner, Gerir gestor,Utilizador funcionario) {
+    		while (true) {
+    			titulo("CORRESPONDÊNCIAS");
+    			System.out.println("1 - Associar registo perdido a achado");
+    			System.out.println("0 - Voltar");
+    			switch (escolher(scanner, gestor)) {
+    			case 1: gestor.listarObjetosPerdidos();
+    				Long perdido = pedirLong(scanner, gestor, "ID do objeto perdido: ");
+    				gestor.listarObjetosDisponiveis();
+    				Long achado = pedirLong(scanner, gestor, "ID do objeto encontrado: ");
+    				gestor.associarManual(perdido, achado, funcionario.getId());
+    			break;
+    		case 0: return;
+    		default: opcaoInvalida();
+    		}
+    	}
+    }
+
 
     private static void menuReclamacoesFuncionario(Scanner scanner, Gerir gestor,
                                                     Utilizador funcionario) {
