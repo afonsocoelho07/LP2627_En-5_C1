@@ -53,6 +53,18 @@ public class Reclamacao {
     @JoinColumn(name = "objeto_id")
     private Objeto objeto;
 
+    // Preferencia escolhida pelo cliente depois da aprovacao.
+    @Column(name = "tipo_levantamento", length = 15)
+    private String tipoLevantamento; // PRESENCIAL ou LOCKY
+
+    @ManyToOne
+    @JoinColumn(name = "local_levantamento_id")
+    private Local localLevantamento;
+
+    @ManyToOne
+    @JoinColumn(name = "ponto_locky_id")
+    private PontoLocky pontoLockyEscolhido;
+
     /**
      * construtor vazio para o banco de dados conseguir trabalhar
      */
@@ -158,6 +170,24 @@ public class Reclamacao {
      */
     public void setObjeto(Objeto objeto) { 
         this.objeto = objeto; }
+
+    public String getTipoLevantamento() { return tipoLevantamento; }
+    public Local getLocalLevantamento() { return localLevantamento; }
+    public PontoLocky getPontoLockyEscolhido() { return pontoLockyEscolhido; }
+
+    public void escolherPresencial(Local local) {
+        if (local == null) throw new IllegalArgumentException("Local obrigatorio.");
+        tipoLevantamento = "PRESENCIAL";
+        localLevantamento = local;
+        pontoLockyEscolhido = null;
+    }
+
+    public void escolherLocky(PontoLocky ponto) {
+        if (ponto == null) throw new IllegalArgumentException("Ponto Locky obrigatorio.");
+        tipoLevantamento = "LOCKY";
+        pontoLockyEscolhido = ponto;
+        localLevantamento = ponto.getLocal();
+    }
 
     /**
      * mostra os dados da queixa em texto corrido

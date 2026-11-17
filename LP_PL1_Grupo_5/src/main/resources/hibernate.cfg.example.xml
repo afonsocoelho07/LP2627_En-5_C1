@@ -19,5 +19,7 @@
 		<mapping class="upt.pt.Objeto"/>
 		<mapping class="upt.pt.Reclamacao"/>
         <mapping class="upt.pt.Agendamento"/>
+        <mapping class="upt.pt.PontoLocky"/>
+        <mapping class="upt.pt.Locky"/>
     </session-factory>
 </hibernate-configuration>
