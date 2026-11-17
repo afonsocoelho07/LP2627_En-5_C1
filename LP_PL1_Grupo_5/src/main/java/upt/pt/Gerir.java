@@ -13,7 +13,8 @@ import java.util.Scanner;
  * classe principal que contem os metedos todos
  */
 public class Gerir {
-
+	
+	private Prateleira prateleiraAtual;
     private SessionFactory sessionFactory;
 
     /**       
@@ -721,13 +722,10 @@ public class Gerir {
                 a.setUtilizador(session.get(Utilizador.class, idUser));
                 session.persist(a);
 
-                o.setEstado("Concluído");
-                if (o.getObjetoAssociado() != null) {
-                    o.getObjetoAssociado().setEstado("Concluído");
-                }
+                o.setEstado("Agendado para levantamento");
 
                 t.commit();
-                System.out.println("Agendamento confirmado! O estado passou para 'Concluído' e o espaço na prateleira foi libertado.");
+                System.out.println("Agendamento confirmado! O objeto fica reservado até ao levantamento.");
             } else {
                 System.out.println("Erro: Não pode agendar a recolha! O estado atual do objeto é '" + o.getEstado() + "'.");
             }
@@ -735,7 +733,66 @@ public class Gerir {
             System.out.println("Erro ao agendar: " + e.getMessage());
         }
     }
-
+    
+    /**
+     * verifica que agendamentos passaram da data de recolha
+     * apaga o agendamento e retorna os objetos ao seu armazem
+     * @return quantos agendamentos expiraram
+     */
+    public int verificarObjetosExpirados() {
+    	try(Session session = sessionFactory.openSession()) {
+    		Transaction t = session.beginTransaction();
+    		
+    		List<Agendamento> expirados = session.createQuery(
+    				"from Agendamento a where a.objeto.estado = 'Agendado para Levantamento' " +
+                    "and a.dataHora < :agora", Agendamento.class)
+                    .setParameter("agora", LocalDateTime.now().minusDays(1))
+                    .getResultList();
+    		
+    		for (Agendamento a : expirados) {
+    			Objeto o = a.getObjeto();
+    			o.setEstado("Em Armazém");
+    			session.remove(a);
+    			System.out.println("Agendamento " + a.getId() + " expirou. Objeto ID " + o.getId() + " devolvido ao armazém.");
+    		}
+    		
+    		t.commit();
+    		return expirados.size();
+    	} catch (Exception e) {
+    		System.out.println("Erro ao verificar expirados: " + e.getMessage());
+    		return 0;
+    	}
+    }
+    
+    /**
+     * confirma que a pessoa veio buscar o objeto no dia marcado
+     * @param idObjeto o objeto levantado
+     */
+    public void confirmarLevantamento(Long idObjeto, Long idFuncionario) {
+    	try (Session session = sessionFactory.openSession()) {
+    		Transaction t = session.beginTransaction();
+    		Objeto o = session.get(Objeto.class, idObjeto);
+    		Utilizador f = session.get(Utilizador.class, idFuncionario);
+    		
+    		if (o == null || !"Agendado para levantamento".equalsIgnoreCase(o.getEstado())) {
+    			System.out.println("Erro: Objeto não encontrado ou sem agendamento.");
+    			return;
+    		}
+    		
+    		if (f.getLocalTrabalho() == null || o.getLocalRecolha() == null
+    				|| !f.getLocalTrabalho().getId().equals(o.getLocalRecolha().getId())) {
+    			System.out.println("Erro: Este objeto pertence a outro edifício. Ação negada.");
+    			return;
+    		}
+    		
+    		o.setEstado("Concluído");
+    		t.commit();
+    		System.out.println("Levantamento confirmado! Espaço na prateleira libertado.");
+    	} catch (Exception e) {
+    		System.out.println("Erro ao confirmar levantamento: " + e.getMessage());
+    	}
+    }
+    
     /** 
      * mostra as coisas que estao arrumadas no armazem a espera do dono
      */

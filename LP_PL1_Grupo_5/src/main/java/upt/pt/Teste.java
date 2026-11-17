@@ -41,6 +41,7 @@ public class Teste {
                         System.out.println("Erro: Credenciais Inválidas!");
                     } else {
                         System.out.println("Login com sucesso! Perfil: " + utilizadorLogado.getTipoUtilizador());
+                        gerir.verificarObjetosExpirados();
                     }
                     
                 } else if (opcao == 2) {
@@ -302,6 +303,7 @@ public class Teste {
             System.out.println("7. Rejeitar Reclamação (pelo ID Reclamação)");
             System.out.println("8. Arquivar Processo Concluído");
             System.out.println("9. Listar Objetos Perdidos");
+            System.out.println("10. Confirmar Levantamento de objeto");
             System.out.println("0. Fazer Logout");
             
             System.out.print("Escolha: ");
@@ -368,6 +370,12 @@ public class Teste {
                     System.out.println("--- OBJETOS PERDIDOS ---");
                     gerir.listarObjetosPerdidos();
                     break;
+                    
+                case 10:
+                	System.out.println("ID do Objeto levantado: ");
+                	Long idLevantado = gerir.lerLong(scanner);
+                	if (idLevantado != -1L) gerir.confirmarLevantamento(idLevantado, utilizador.getId());
+                	break;
                     
                 case 0: 
                     return null;
