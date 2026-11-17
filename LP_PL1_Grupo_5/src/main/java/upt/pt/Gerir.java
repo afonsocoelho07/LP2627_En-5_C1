@@ -976,7 +976,7 @@ public class Gerir {
      * Lê todos os objetos de cacifos. Se o tempo da data do sistema face à data original do objeto for > 30 dias,
      * retira a lotação da prateleira e lança o objeto para a fase final do Armazém com o estado "Expirado".
      */
-    public void verificarObjetosExpirados() {
+    public void verificarObjetosExpiradosLocky() {
         try (Session session = sessionFactory.openSession()) {
             Transaction t = session.beginTransaction();
             
