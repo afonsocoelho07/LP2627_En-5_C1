@@ -10,6 +10,7 @@ import java.util.Scanner;
 public class Teste {
 
     public static void main(String[] args) {
+      
         Scanner scanner = new Scanner(System.in);
         Gerir gestor = new Gerir();
         Utilizador utilizador = null;
@@ -228,13 +229,14 @@ public class Teste {
                 System.out.println("Seleciona primeiro uma reclamação (opção 1).");
                 continue;
             }
-
+          
             switch (opcao) {
                 case 2:
                     escolherLevantamento(scanner, gestor, cliente, reclamacaoSelecionada);
                     break;
                 case 3:
                     gestor.consultarMeuLevantamento(reclamacaoSelecionada, cliente.getId());
+                    gestor.verificarObjetosExpirados();
                     break;
                 case 4:
                     // Método original do grupo, mantido sem mudanças (integração pendente).
@@ -331,26 +333,6 @@ public class Teste {
         }
     }
 
-    private static void menuCorrespondencias(Scanner scanner, Gerir gestor,
-                                               Utilizador funcionario) {
-        while (true) {
-            titulo("CORRESPONDÊNCIAS");
-            System.out.println("1 - Associar registo perdido a achado");
-            System.out.println("0 - Voltar");
-            switch (escolher(scanner, gestor)) {
-                case 1:
-                    gestor.listarObjetosPerdidos();
-                    Long perdido = pedirLong(scanner, gestor, "ID do objeto perdido: ");
-                    gestor.listarObjetosDisponiveis();
-                    Long achado = pedirLong(scanner, gestor, "ID do objeto encontrado: ");
-                    gestor.associarManual(perdido, achado, funcionario.getId());
-                    break;
-                case 0: return;
-                default: opcaoInvalida();
-            }
-        }
-    }
-
     private static void menuReclamacoesFuncionario(Scanner scanner, Gerir gestor,
                                                     Utilizador funcionario) {
         while (true) {
@@ -389,6 +371,7 @@ public class Teste {
             System.out.println("1 - Arquivar processo concluído");
             System.out.println("2 - Listar objetos expirados (regra original)");
             System.out.println("3 - Doar/eliminar objeto expirado");
+            System.out.println("4 - Confirmar levantamento de objeto");
             System.out.println("0 - Voltar");
             switch (escolher(scanner, gestor)) {
                 case 1:
@@ -404,6 +387,11 @@ public class Teste {
                     if (confirmar(scanner, "Doar/eliminar definitivamente o objeto " + eliminar + "?")) {
                         gestor.doarOuEliminarObjeto(eliminar, funcionario.getId());
                     }
+                    break;
+                case 4:
+                    Long idObjeto = pedirLong(scanner, gestor, "Insira o ID do objeto levantado: ");
+                    Long idFuncionario = pedirLong(scanner, gestor, "Insira o seu ID de funcionário: ");
+                    gestor.confirmarLevantamento(idObjeto, idFuncionario);
                     break;
                 case 0: return;
                 default: opcaoInvalida();
